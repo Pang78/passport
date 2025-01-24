@@ -1,6 +1,10 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { OpenAI } from 'openai';
+
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || process.env.OPENAI_API_KEY
+});
 
 export async function extractPassportData(base64Image: string) {
   try {
