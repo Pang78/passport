@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { extractPassportData } from "../client/src/lib/openai";
-const { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } = require('@zxing/library');
+import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/library';
 
 
 const upload = multer({
