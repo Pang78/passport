@@ -73,7 +73,7 @@ export default function Home() {
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-2 sm:gap-3">
               <img
-                src="/ica-logo.jpg"
+                src="/icalogo.jpg"
                 alt="ICA Logo"
                 className="h-8 sm:h-12 w-auto object-contain bg-white p-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
               />
