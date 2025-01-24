@@ -69,16 +69,16 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <img
                 src="/ica-logo.jpg"
                 alt="ICA Logo"
-                className="h-12 w-auto"
+                className="h-8 sm:h-12 w-auto"
               />
               <div className="h-6 w-px bg-gray-200" />
-              <h1 className="text-lg font-semibold text-gray-900">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900">
                 Passport Data Extractor
               </h1>
             </div>
@@ -87,16 +87,16 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="w-full max-w-7xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
         <div className="space-y-8">
           {/* Upload Section */}
           <Card className="border-2 shadow-sm">
             <CardContent className="p-8">
               <div className="max-w-2xl">
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-3">
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 mb-2 sm:mb-3">
                   Extract Passport Data
                 </h2>
-                <p className="text-gray-600 mb-8">
+                <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                   Upload passport images to automatically extract and structure their data using advanced AI technology. 
                   The system supports batch processing for multiple passports.
                 </p>
@@ -108,12 +108,12 @@ export default function Home() {
           {/* Results Section */}
           {passportDataList.length > 0 && (
             <Card className="border-2 shadow-sm">
-              <CardContent className="p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
+              <CardContent className="p-4 sm:p-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                     Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
                   </h2>
-                  <Button onClick={exportToCSV} variant="outline" className="gap-2">
+                  <Button onClick={exportToCSV} variant="outline" className="w-full sm:w-auto gap-2">
                     <Download className="w-4 h-4" />
                     Export CSV
                   </Button>
