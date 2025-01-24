@@ -66,19 +66,19 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-primary text-primary-foreground">
         <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-2 sm:gap-3">
               <img
-                src="/ica-logo.jpg"
+                src="/ica-invisible-guardians-logo-2.jpg"
                 alt="ICA Logo"
-                className="h-8 sm:h-12 w-auto"
+                className="h-8 sm:h-12 w-auto object-contain bg-white p-1 rounded"
               />
-              <div className="h-6 w-px bg-gray-200" />
-              <h1 className="text-base sm:text-lg font-semibold text-gray-900">
+              <div className="h-6 w-px bg-primary-foreground/20" />
+              <h1 className="text-base sm:text-lg font-semibold">
                 Passport Data Extractor
               </h1>
             </div>
