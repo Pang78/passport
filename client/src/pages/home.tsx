@@ -66,45 +66,76 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <Card className="border-2">
-          <CardContent className="p-6">
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-6">
-              Passport Data Extractor
-            </h1>
-            <p className="text-gray-600 mb-8">
-              Upload passport images to extract and structure their data using AI.
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <img
+                src="/ica-invisible-guardians-logo-2.jpg"
+                alt="ICA Logo"
+                className="h-8 w-auto"
+              />
+              <div className="h-6 w-px bg-gray-200" />
+              <h1 className="text-lg font-semibold text-gray-900">
+                Passport Data Extractor
+              </h1>
+            </div>
+          </div>
+        </div>
+      </header>
 
-            <PassportUpload onDataExtracted={setPassportDataList} />
-          </CardContent>
-        </Card>
-
-        {passportDataList.length > 0 && (
-          <Card className="border-2">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-semibold">
-                  Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+          {/* Upload Section */}
+          <Card className="border-2 shadow-sm">
+            <CardContent className="p-8">
+              <div className="max-w-2xl">
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-3">
+                  Extract Passport Data
                 </h2>
-                <Button onClick={exportToCSV} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export CSV
-                </Button>
-              </div>
-              <div className="space-y-8">
-                {passportDataList.map((data, index) => (
-                  <div key={index} className="border-t pt-6 first:border-t-0 first:pt-0">
-                    <h3 className="text-lg font-medium mb-4">Passport {index + 1}</h3>
-                    <JsonDisplay data={data} />
-                  </div>
-                ))}
+                <p className="text-gray-600 mb-8">
+                  Upload passport images to automatically extract and structure their data using advanced AI technology. 
+                  The system supports batch processing for multiple passports.
+                </p>
+                <PassportUpload onDataExtracted={setPassportDataList} />
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          {/* Results Section */}
+          {passportDataList.length > 0 && (
+            <Card className="border-2 shadow-sm">
+              <CardContent className="p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
+                  </h2>
+                  <Button onClick={exportToCSV} variant="outline" className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </Button>
+                </div>
+                <div className="space-y-10">
+                  {passportDataList.map((data, index) => (
+                    <div 
+                      key={index} 
+                      className="border-t pt-8 first:border-t-0 first:pt-0"
+                    >
+                      <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                        Passport {index + 1}
+                      </h3>
+                      <JsonDisplay data={data} />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
