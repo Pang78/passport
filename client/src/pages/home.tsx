@@ -1,9 +1,17 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import PassportUpload from "@/components/passport-upload";
 import CameraCapture from "@/components/camera-capture";
-import JsonDisplay from "@/components/json-display";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Download, Upload, Camera } from "lucide-react";
 import { useState } from "react";
 import { validatePassportData } from "@/lib/validation";
@@ -42,62 +50,41 @@ export default function Home() {
   const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
 
   const exportToCSV = () => {
-    // Create CSV headers
     const headers = [
-      "Full Name",
-      "Date of Birth",
-      "Passport Number",
-      "Nationality",
-      "Date of Issue",
-      "Date of Expiry",
-      "Place of Birth",
-      "Issuing Authority",
-      "MRZ Line 1",
-      "MRZ Line 2",
-      "Overall Confidence",
-      "Remarks",
-      "Valid",
+      "Full Name", "Date of Birth", "Passport Number", "Nationality",
+      "Date of Issue", "Date of Expiry", "Place of Birth", "Issuing Authority",
+      "MRZ Line 1", "MRZ Line 2", "Overall Confidence", "Remarks", "Valid",
       "Extraction Notes"
-    ].map(header => `"${header}"`).join(",");
+    ].join(",");
 
-    // Create CSV rows
-    const rows = passportDataList.map((data) => {
-      const row = [
-        data.fullName || "",
-        data.dateOfBirth || "",
-        data.passportNumber || "",
-        data.nationality || "",
-        data.dateOfIssue || "",
-        data.dateOfExpiry || "",
-        data.placeOfBirth || "",
-        data.issuingAuthority || "",
-        data.mrz?.line1 || "",
-        data.mrz?.line2 || "",
-        data.overall_confidence?.toFixed(2) || "0",
-        Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
-        data.isValid ? "Yes" : "No",
-        Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
-      ];
+    const rows = passportDataList.map((data) => [
+      data.fullName || "",
+      data.dateOfBirth || "",
+      data.passportNumber || "",
+      data.nationality || "",
+      data.dateOfIssue || "",
+      data.dateOfExpiry || "",
+      data.placeOfBirth || "",
+      data.issuingAuthority || "",
+      data.mrz?.line1 || "",
+      data.mrz?.line2 || "",
+      data.overall_confidence?.toFixed(2) || "0",
+      (data.remarks || []).join("; "),
+      data.isValid ? "Yes" : "No",
+      (data.extraction_notes || []).join("; ")
+    ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
 
-      // Ensure each value is properly escaped and quoted
-      return row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",");
-    });
-
-    // Combine headers and rows
     const csvContent = [headers, ...rows].join("\n");
-
-    // Create and download the file
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `passport_data_${new Date().toISOString().split('T')[0]}.csv`);
+    link.download = `passport_data_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const handleDataExtracted = (data: PassportData[]) => {
-    // Validate each passport data and add remarks
     const validatedData = data.map(passport => {
       const { isValid, remarks } = validatePassportData(passport);
       return {
@@ -117,7 +104,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-gray-50">
-      {/* Header */}
       <header className="bg-primary/95 text-primary-foreground shadow-md backdrop-blur-sm sticky top-0 z-10">
         <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
@@ -136,10 +122,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="w-full max-w-7xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
         <div className="space-y-8">
-          {/* Upload Section */}
           <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-6 sm:p-8">
               <div className="max-w-3xl mx-auto">
@@ -171,7 +155,6 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* Results Section */}
           {passportDataList.length > 0 && (
             <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardContent className="p-4 sm:p-8">
@@ -188,37 +171,54 @@ export default function Home() {
                     Export CSV
                   </Button>
                 </div>
-                <div className="space-y-10">
-                  {passportDataList.map((data, index) => (
-                    <div 
-                      key={index} 
-                      className="border-t pt-8 first:border-t-0 first:pt-0"
-                    >
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Passport {index + 1}
-                      </h3>
-                      {data.overall_confidence !== undefined && (
-                        <p className={`text-sm mb-4 ${
-                          data.overall_confidence < 0.5 ? 'text-red-600' : 
-                          data.overall_confidence < 0.8 ? 'text-yellow-600' : 
-                          'text-green-600'
-                        }`}>
-                          Extraction Confidence: {(data.overall_confidence * 100).toFixed(1)}%
-                        </p>
-                      )}
-                      {data.remarks && data.remarks.length > 0 && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-sm font-medium text-red-800 mb-2">Anomalies Detected:</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            {data.remarks.map((remark, i) => (
-                              <li key={i} className="text-sm text-red-600">{remark}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      <JsonDisplay data={data} />
-                    </div>
-                  ))}
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Full Name</TableHead>
+                        <TableHead>Passport Number</TableHead>
+                        <TableHead>Nationality</TableHead>
+                        <TableHead>Date of Birth</TableHead>
+                        <TableHead>Date of Expiry</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Confidence</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {passportDataList.map((data, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{data.fullName}</TableCell>
+                          <TableCell>{data.passportNumber}</TableCell>
+                          <TableCell>{data.nationality}</TableCell>
+                          <TableCell>{data.dateOfBirth}</TableCell>
+                          <TableCell>{data.dateOfExpiry}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              data.isValid 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {data.isValid ? 'Valid' : 'Invalid'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`${
+                              data.overall_confidence < 0.5 
+                                ? 'text-red-600' 
+                                : data.overall_confidence < 0.8 
+                                  ? 'text-yellow-600' 
+                                  : 'text-green-600'
+                            }`}>
+                              {data.overall_confidence !== undefined 
+                                ? `${(data.overall_confidence * 100).toFixed(1)}%` 
+                                : 'N/A'}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
