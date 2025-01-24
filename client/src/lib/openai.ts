@@ -11,7 +11,7 @@ export async function extractPassportData(base64Image: string) {
   console.log("Attempting OpenAI request...");
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4-vision",
       max_tokens: 4096,
       messages: [
         {
@@ -51,7 +51,7 @@ export async function extractPassportData(base64Image: string) {
           ],
         }
       ],
-      temperature: 0, // Use deterministic responses for consistency
+      temperature: 0,
     });
 
     console.log("OpenAI response received:", response.choices[0]);
@@ -62,7 +62,6 @@ export async function extractPassportData(base64Image: string) {
 
     try {
       const parsedData = JSON.parse(content);
-      // Ensure all required fields exist with proper defaults
       return {
         ...parsedData,
         confidence_scores: {
@@ -79,8 +78,9 @@ export async function extractPassportData(base64Image: string) {
         overall_confidence: parsedData.overall_confidence ?? 0,
         extraction_notes: parsedData.extraction_notes ?? []
       };
-    } catch (parseError) {
-      throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
+    } catch (error) {
+      console.error("Failed to parse OpenAI response:", error, "Content:", content);
+      throw new Error(`Failed to parse OpenAI response: ${error instanceof Error ? error.message : String(error)}`);
     }
   } catch (error: any) {
     console.error("OpenAI request failed:", error);
