@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import PassportUpload from "@/components/passport-upload";
 import CameraCapture from "@/components/camera-capture";
@@ -17,14 +16,14 @@ import { useState } from "react";
 import { validatePassportData } from "@/lib/validation";
 
 export type PassportData = {
-  fullName: string;
-  dateOfBirth: string;
-  passportNumber: string;
-  nationality: string;
-  dateOfIssue: string;
-  dateOfExpiry: string;
-  placeOfBirth: string;
-  issuingAuthority: string;
+  fullName: string | { value: string };
+  dateOfBirth: string | { value: string };
+  passportNumber: string | { value: string };
+  nationality: string | { value: string };
+  dateOfIssue: string | { value: string };
+  dateOfExpiry: string | { value: string };
+  placeOfBirth: string | { value: string };
+  issuingAuthority: string | { value: string };
   mrz?: {
     line1: string;
     line2: string;
@@ -58,20 +57,20 @@ export default function Home() {
     ].join(",");
 
     const rows = passportDataList.map((data) => [
-      data.fullName || "",
-      data.dateOfBirth || "",
-      data.passportNumber || "",
-      data.nationality || "",
-      data.dateOfIssue || "",
-      data.dateOfExpiry || "",
-      data.placeOfBirth || "",
-      data.issuingAuthority || "",
+      typeof data.fullName === 'object' ? data.fullName.value : data.fullName || "",
+      typeof data.dateOfBirth === 'object' ? data.dateOfBirth.value : data.dateOfBirth || "",
+      typeof data.passportNumber === 'object' ? data.passportNumber.value : data.passportNumber || "",
+      typeof data.nationality === 'object' ? data.nationality.value : data.nationality || "",
+      typeof data.dateOfIssue === 'object' ? data.dateOfIssue.value : data.dateOfIssue || "",
+      typeof data.dateOfExpiry === 'object' ? data.dateOfExpiry.value : data.dateOfExpiry || "",
+      typeof data.placeOfBirth === 'object' ? data.placeOfBirth.value : data.placeOfBirth || "",
+      typeof data.issuingAuthority === 'object' ? data.issuingAuthority.value : data.issuingAuthority || "",
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
-      (data.remarks || []).join("; "),
+      Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
       data.isValid ? "Yes" : "No",
-      (data.extraction_notes || []).join("; ")
+      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
     ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
 
     const csvContent = [headers, ...rows].join("\n");
