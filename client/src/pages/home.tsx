@@ -4,6 +4,7 @@ import JsonDisplay from "@/components/json-display";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useState } from "react";
+import { validatePassportData } from "@/lib/validation";
 
 export type PassportData = {
   fullName: string;
@@ -18,6 +19,8 @@ export type PassportData = {
     line1: string;
     line2: string;
   };
+  remarks?: string[];
+  isValid?: boolean;
 };
 
 export default function Home() {
@@ -36,6 +39,8 @@ export default function Home() {
       "Issuing Authority",
       "MRZ Line 1",
       "MRZ Line 2",
+      "Remarks",
+      "Valid"
     ].join(",");
 
     // Create CSV rows
@@ -50,6 +55,8 @@ export default function Home() {
       data.issuingAuthority,
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
+      (data.remarks || []).join("; "),
+      data.isValid ? "Yes" : "No"
     ].map(value => `"${value}"`).join(","));
 
     // Combine headers and rows
@@ -65,6 +72,19 @@ export default function Home() {
     document.body.removeChild(link);
   };
 
+  const handleDataExtracted = (data: PassportData[]) => {
+    // Validate each passport data and add remarks
+    const validatedData = data.map(passport => {
+      const { isValid, remarks } = validatePassportData(passport);
+      return {
+        ...passport,
+        isValid,
+        remarks,
+      };
+    });
+    setPassportDataList(validatedData);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-gray-50">
       {/* Header */}
@@ -73,7 +93,7 @@ export default function Home() {
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-2 sm:gap-3">
               <img
-                src="/icalogo.png"
+                src="/ica-invisible-guardians-logo-2.jpg"
                 alt="ICA Logo"
                 className="h-8 sm:h-12 w-auto object-contain bg-white p-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
               />
@@ -100,7 +120,7 @@ export default function Home() {
                   Upload passport images to automatically extract and structure their data using advanced AI technology. 
                   The system supports batch processing for multiple passports with secure data handling.
                 </p>
-                <PassportUpload onDataExtracted={setPassportDataList} />
+                <PassportUpload onDataExtracted={handleDataExtracted} />
               </div>
             </CardContent>
           </Card>
@@ -131,6 +151,16 @@ export default function Home() {
                       <h3 className="text-lg font-semibold text-gray-900 mb-6">
                         Passport {index + 1}
                       </h3>
+                      {data.remarks && data.remarks.length > 0 && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm font-medium text-red-800 mb-2">Anomalies Detected:</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {data.remarks.map((remark, i) => (
+                              <li key={i} className="text-sm text-red-600">{remark}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       <JsonDisplay data={data} />
                     </div>
                   ))}

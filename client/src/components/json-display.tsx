@@ -1,11 +1,14 @@
 import { Card } from "@/components/ui/card";
 import type { PassportData } from "@/pages/home";
+import { cn } from "@/lib/utils";
 
 interface JsonDisplayProps {
   data: PassportData;
 }
 
 export default function JsonDisplay({ data }: JsonDisplayProps) {
+  const hasRemarks = data.remarks && data.remarks.length > 0;
+
   return (
     <div className="space-y-4">
       <Card className="p-4 bg-gray-50">
@@ -16,13 +19,18 @@ export default function JsonDisplay({ data }: JsonDisplayProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Object.entries(data).map(([key, value]) => {
-          if (key === "mrz" || typeof value === "object") return null;
+          if (key === "mrz" || key === "remarks" || key === "isValid" || typeof value === "object") return null;
+          const hasIssue = hasRemarks && data.remarks?.some(remark => remark.toLowerCase().includes(key.toLowerCase()));
+
           return (
             <div key={key} className="space-y-1">
               <dt className="text-sm font-medium text-gray-500 capitalize">
                 {key.replace(/([A-Z])/g, " $1").trim()}
               </dt>
-              <dd className="text-sm font-semibold text-gray-900">
+              <dd className={cn(
+                "text-sm font-semibold",
+                hasIssue ? "text-red-600" : "text-gray-900"
+              )}>
                 {value as string}
               </dd>
             </div>
