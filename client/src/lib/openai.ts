@@ -12,7 +12,7 @@ export async function extractPassportData(base64Image: string) {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4-vision-preview",
-      max_tokens: 4096,
+      max_tokens: 500,
       messages: [
         {
           role: "system",
