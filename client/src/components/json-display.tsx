@@ -25,10 +25,13 @@ export default function JsonDisplay({ data }: JsonDisplayProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Object.entries(data).map(([key, value]) => {
-          if (key === "mrz" || key === "remarks" || key === "isValid" || key === "confidence_scores" || key === "overall_confidence" || key === "extraction_notes" || typeof value === "object") return null;
+          if (key === "mrz" || key === "remarks" || key === "isValid" || key === "confidence_scores" || key === "overall_confidence" || key === "extraction_notes") return null;
+
+          const displayValue = value?.value || value;
+          if (typeof displayValue === "object") return null;
 
           const hasIssue = hasRemarks && data.remarks?.some(remark => remark.toLowerCase().includes(key.toLowerCase()));
-          const confidenceScore = data.confidence_scores?.[key as keyof typeof data.confidence_scores];
+          const confidenceScore = value?.confidence || data.confidence_scores?.[key as keyof typeof data.confidence_scores];
 
           return (
             <div key={key} className="space-y-1">
