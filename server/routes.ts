@@ -25,32 +25,21 @@ export function registerRoutes(app: Express): Server {
 
       if (req.file.mimetype === "application/pdf") {
         try {
-          // Save PDF to temp file
-          const tempPath = path.join(os.tmpdir(), `${Date.now()}.pdf`);
-          await fs.writeFile(tempPath, req.file.buffer);
-
-          // Convert PDF to image
-          const options = {
-            density: 300,
-            saveFilename: "passport",
-            savePath: os.tmpdir(),
-            format: "jpeg",
+          const pdfImgConvert = require('pdf-img-convert');
+          
+          // Convert PDF to images
+          const outputImages = await pdfImgConvert.convert(req.file.buffer, {
             width: 2000,
-            height: 2000
-          };
-
-          const convert = fromPath(tempPath, options);
-          const pageOutput = await convert(1); // Convert first page
-
-          if (!pageOutput.base64) {
+            height: 2000,
+            page_numbers: [0],
+            base64: true
+          });
+          
+          if (!outputImages?.[0]) {
             throw new Error("Failed to convert PDF to image");
           }
 
-          base64Image = pageOutput.base64;
-
-          // Clean up temp files
-          await fs.unlink(tempPath);
-          await fs.unlink(path.join(os.tmpdir(), 'passport.1.jpeg'));
+          base64Image = outputImages[0];
 
         } catch (error: any) {
           return res.status(400).send("Failed to process PDF: " + error.message);
