@@ -60,14 +60,14 @@ export default function Home() {
 
     // Create CSV rows
     const rows = passportDataList.map((data) => [
-      data.fullName?.value || data.fullName || "",
-      data.dateOfBirth?.value || data.dateOfBirth || "",
-      data.passportNumber?.value || data.passportNumber || "",
-      data.nationality?.value || data.nationality || "",
-      data.dateOfIssue?.value || data.dateOfIssue || "",
-      data.dateOfExpiry?.value || data.dateOfExpiry || "",
-      data.placeOfBirth?.value || data.placeOfBirth || "",
-      data.issuingAuthority?.value || data.issuingAuthority || "",
+      data.fullName,
+      data.dateOfBirth,
+      data.passportNumber,
+      data.nationality,
+      data.dateOfIssue,
+      data.dateOfExpiry,
+      data.placeOfBirth,
+      data.issuingAuthority,
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
