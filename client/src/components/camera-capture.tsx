@@ -18,6 +18,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   const [isCropping, setIsCropping] = useState(false);
   const [cropStart, setCropStart] = useState<{ x: number; y: number } | null>(null);
   const [cropEnd, setCropEnd] = useState<{ x: number; y: number } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false); // Added loading state
   const { toast } = useToast();
 
   const initializeCamera = useCallback(async () => {
@@ -157,12 +158,19 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   };
 
   const captureImage = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    setIsProcessing(true); // Set loading state to true
+    if (!videoRef.current || !canvasRef.current) {
+      setIsProcessing(false); // Set loading state to false if error occurs
+      return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
-    if (!context) return;
+    if (!context) {
+      setIsProcessing(false); // Set loading state to false if error occurs
+      return;
+    }
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -189,6 +197,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         description: qualityCheck.message,
         variant: "destructive",
       });
+      setIsProcessing(false); // Set loading state to false
       return;
     }
 
@@ -215,12 +224,14 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         title: "Success",
         description: "Image captured and processed successfully",
       });
+      setIsProcessing(false); // Set loading state to false
     } catch (error: any) {
       toast({
         title: "Processing Error",
         description: error.message,
         variant: "destructive",
       });
+      setIsProcessing(false); // Set loading state to false
     }
   };
 
@@ -301,6 +312,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
               variant="outline"
               size="icon"
               onClick={switchCamera}
+              disabled={isProcessing} // Disable button during processing
             >
               <RotateCw className="h-4 w-4" />
             </Button>
@@ -310,6 +322,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
             variant="outline"
             size="icon"
             onClick={() => setIsCropping(!isCropping)}
+            disabled={isProcessing} // Disable button during processing
             className={isCropping ? "bg-primary/10" : ""}
           >
             {isCropping ? (
@@ -320,9 +333,9 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
           </Button>
         </div>
 
-        <Button onClick={captureImage} className="gap-2">
+        <Button onClick={captureImage} disabled={isProcessing} className="gap-2">
           <Camera className="h-4 w-4" />
-          Capture
+          {isProcessing ? "Processing..." : "Capture"}
         </Button>
       </div>
     </div>
