@@ -129,47 +129,31 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     }
   };
 
-  const checkImageQuality = (imageData: ImageData): { isValid: boolean; message?: string } => {
-    const { data, width, height } = imageData;
+  const checkImageQuality = async (canvas: HTMLCanvasElement): Promise<{ isValid: boolean; message?: string }> => {
+    try {
+      const base64Image = canvas.toDataURL('image/jpeg', 0.95);
+      const formData = new FormData();
+      const blob = await (await fetch(base64Image)).blob();
+      formData.append('image', blob, 'check.jpg');
 
-    let totalBrightness = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      totalBrightness += (r + g + b) / 3;
-    }
-    const averageBrightness = totalBrightness / (width * height);
+      const response = await fetch('/api/check-quality', {
+        method: 'POST',
+        body: formData,
+      });
 
-    let blurScore = 0;
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        const idx = (y * width + x) * 4;
-        const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-        const neighbors = [
-          ((y - 1) * width + x) * 4,
-          ((y + 1) * width + x) * 4,
-          (y * width + x - 1) * 4,
-          (y * width + x + 1) * 4,
-        ].map(i => (data[i] + data[i + 1] + data[i + 2]) / 3);
-
-        const variance = neighbors.reduce((sum, val) => sum + Math.abs(val - gray), 0);
-        blurScore += variance;
+      if (!response.ok) {
+        throw new Error(await response.text());
       }
-    }
-    blurScore /= (width * height);
 
-    if (averageBrightness < 40) {
-      return { isValid: false, message: "Image too dark" };
+      const result = await response.json();
+      return {
+        isValid: result.isValid,
+        message: result.message
+      };
+    } catch (error) {
+      console.error('Quality check error:', error);
+      return { isValid: true }; // Fallback to accepting the image if API fails
     }
-    if (averageBrightness > 215) {
-      return { isValid: false, message: "Image too bright" };
-    }
-    if (blurScore < 20) {
-      return { isValid: false, message: "Image too blurry" };
-    }
-
-    return { isValid: true };
   };
 
   const captureImage = async () => {
@@ -197,8 +181,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       context.putImageData(croppedImageData, 0, 0);
     }
 
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const qualityCheck = checkImageQuality(imageData);
+    const qualityCheck = await checkImageQuality(canvas);
 
     if (!qualityCheck.isValid) {
       toast({
