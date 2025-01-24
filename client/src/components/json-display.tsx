@@ -48,8 +48,8 @@ export default function JsonDisplay({ data }: JsonDisplayProps) {
                 hasIssue ? "text-red-600" : "text-gray-900"
               )}>
                 {typeof value === 'object' && value !== null ? 
-                  value.value || JSON.stringify(value) : 
-                  String(value)}
+                  (value as any).value || JSON.stringify(value) : 
+                  value === null ? "N/A" : String(value)}
               </dd>
             </div>
           );
