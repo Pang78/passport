@@ -12,35 +12,35 @@ export async function extractPassportData(base64Image: string) {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4-vision-preview",
-      max_tokens: 500,
+      max_tokens: 1000,
       messages: [
         {
           role: "system",
-          content: `You are a passport data extraction expert. Extract data from passport images and return it in a specific JSON format with confidence scores.
-          Follow these rules:
-          1. Dates should be in YYYY-MM-DD format
-          2. Names should be in UPPERCASE as shown in passport
-          3. Passport numbers should preserve exact formatting
-          4. Include confidence scores between 0-1 for each field
-          5. If a field is not clearly visible, use a lower confidence score
-          6. MRZ lines should maintain exact format and spacing`
+          content: `You are a passport data extraction expert. Your task is to:
+          1. Extract ANY visible text from the passport image, even if partial or unclear
+          2. For each field, describe exactly what you can and cannot see
+          3. Use confidence scores based on visibility:
+             - 1.0: Perfectly clear and complete
+             - 0.7: Mostly visible but some parts unclear
+             - 0.5: Partially visible or somewhat blurry
+             - 0.3: Barely visible or very blurry
+             - 0.1: Can see something but can't read it
+             - 0.0: Not visible at all
+          4. For partial dates, use format YYYY-MM-DD with ? for unknown digits
+          5. For partial names or numbers, include what's visible with ? for unclear parts
+          6. Add detailed notes about image quality and visibility issues`
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Extract the following data from this passport image and format as JSON:\n" +
-                    "- fullName (as shown in passport)\n" +
-                    "- dateOfBirth (YYYY-MM-DD)\n" +
-                    "- passportNumber (exact format)\n" +
-                    "- nationality\n" +
-                    "- dateOfIssue (YYYY-MM-DD)\n" +
-                    "- dateOfExpiry (YYYY-MM-DD)\n" +
-                    "- placeOfBirth\n" +
-                    "- issuingAuthority\n" +
-                    "- mrz (machine readable zone) with line1 and line2\n\n" +
-                    "Include confidence_scores (0-1) for each field and overall_confidence."
+              text: "Describe EXACTLY what you can see in this passport image, including:\n" +
+                    "1. Any visible text or numbers, even if partial\n" +
+                    "2. The quality and clarity of each visible element\n" +
+                    "3. Specific areas that are unclear or obscured\n" +
+                    "4. Whether the image appears to be a valid passport\n\n" +
+                    "Return in JSON format with fields: fullName, dateOfBirth, passportNumber, nationality, dateOfIssue, dateOfExpiry, placeOfBirth, issuingAuthority, mrz (line1/line2), confidence_scores, extraction_notes"
             },
             {
               type: "image_url",
@@ -54,7 +54,7 @@ export async function extractPassportData(base64Image: string) {
       temperature: 0,
     });
 
-    console.log("OpenAI response received:", response.choices[0]);
+    console.log("OpenAI response received:", response.choices[0].message.content);
     const content = response.choices[0].message.content;
     if (!content) {
       throw new Error("No content received from OpenAI");
@@ -75,8 +75,15 @@ export async function extractPassportData(base64Image: string) {
           issuingAuthority: parsedData.confidence_scores?.issuingAuthority ?? 0,
           mrz: parsedData.confidence_scores?.mrz ?? 0
         },
-        overall_confidence: parsedData.overall_confidence ?? 0,
-        extraction_notes: parsedData.extraction_notes ?? []
+        overall_confidence: parsedData.overall_confidence ?? 
+          Object.values(parsedData.confidence_scores || {}).reduce((sum, score) => sum + (score || 0), 0) / 
+          Object.keys(parsedData.confidence_scores || {}).length,
+        extraction_notes: [
+          ...(parsedData.extraction_notes || []),
+          ...Object.entries(parsedData.confidence_scores || {})
+            .filter(([_, score]) => (score || 0) < 0.3)
+            .map(([field]) => `Low confidence in ${field} extraction`)
+        ]
       };
     } catch (error) {
       console.error("Failed to parse OpenAI response:", error, "Content:", content);
