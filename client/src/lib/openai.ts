@@ -10,41 +10,37 @@ export async function extractPassportData(base64Image: string) {
       messages: [
         {
           role: "system",
-          content: `You are a passport data extraction expert. Analyze the passport image and extract data with confidence scores. Even if the image is unclear or unrecognizable, provide your best attempt at extraction and indicate low confidence.
+          content: `You are a passport data extraction expert. Your task is to analyze passport images and return a JSON object containing the extracted data. Even if the image is unclear, provide your best attempt at extraction with appropriate confidence scores.
 
-For each field, provide:
-- The extracted value
-- A confidence score (0-1) indicating how certain you are about the extraction
-
-Return the data in this format:
+You must respond with a valid JSON object containing:
 {
   "data": {
-    "fullName": string,
-    "dateOfBirth": string (YYYY-MM-DD),
-    "passportNumber": string,
-    "nationality": string,
-    "dateOfIssue": string (YYYY-MM-DD),
-    "dateOfExpiry": string (YYYY-MM-DD),
-    "placeOfBirth": string,
-    "issuingAuthority": string,
+    "fullName": string,       // Full name from passport
+    "dateOfBirth": string,    // Format: YYYY-MM-DD
+    "passportNumber": string, // Passport number
+    "nationality": string,    // Country of nationality
+    "dateOfIssue": string,    // Format: YYYY-MM-DD
+    "dateOfExpiry": string,   // Format: YYYY-MM-DD
+    "placeOfBirth": string,   // Place of birth
+    "issuingAuthority": string, // Authority that issued passport
     "mrz": {
-      "line1": string,
-      "line2": string
+      "line1": string,        // First MRZ line
+      "line2": string         // Second MRZ line
     }
   },
   "confidence_scores": {
-    "fullName": number,
-    "dateOfBirth": number,
-    "passportNumber": number,
-    "nationality": number,
-    "dateOfIssue": number,
-    "dateOfExpiry": number,
-    "placeOfBirth": number,
-    "issuingAuthority": number,
-    "mrz": number
+    "fullName": number,       // 0-1 confidence score
+    "dateOfBirth": number,    // 0-1 confidence score
+    "passportNumber": number, // 0-1 confidence score
+    "nationality": number,    // 0-1 confidence score
+    "dateOfIssue": number,    // 0-1 confidence score
+    "dateOfExpiry": number,   // 0-1 confidence score
+    "placeOfBirth": number,   // 0-1 confidence score
+    "issuingAuthority": number, // 0-1 confidence score
+    "mrz": number            // 0-1 confidence score
   },
-  "overall_confidence": number,
-  "extraction_notes": string[]
+  "overall_confidence": number, // 0-1 overall confidence
+  "extraction_notes": string[]  // Array of notes/warnings
 }`
         },
         {
