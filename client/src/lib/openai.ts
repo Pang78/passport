@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function extractPassportData(base64Image: string) {
@@ -9,7 +10,7 @@ export async function extractPassportData(base64Image: string) {
       messages: [
         {
           role: "system",
-          content: `You are a passport data extraction expert. First validate if the image shows a valid passport document. If it's not a passport, respond with {"isValid": false, "error": "reason"}. If it is a passport, extract and return the following fields:
+          content: `You are a passport data extraction expert. Analyze the passport image and extract the following fields in JSON format:
           - fullName
           - dateOfBirth (YYYY-MM-DD)
           - passportNumber
@@ -20,14 +21,14 @@ export async function extractPassportData(base64Image: string) {
           - issuingAuthority
           - mrz (if present, include line1 and line2)
 
-          Return data as {"isValid": true, ...extracted_fields}`
+          Ensure dates are in ISO format and clean any OCR artifacts from the text.`
         },
         {
           role: "user",
           content: [
             {
-              type: "text", 
-              text: "Extract data from this passport image."
+              type: "text",
+              text: "Extract the passport data from this image."
             },
             {
               type: "image_url",
@@ -46,13 +47,7 @@ export async function extractPassportData(base64Image: string) {
       throw new Error("No content received from OpenAI");
     }
 
-    const result = JSON.parse(content);
-    if (!result.isValid) {
-      throw new Error(result.error || "Invalid passport image");
-    }
-
-    delete result.isValid;
-    return result;
+    return JSON.parse(content);
   } catch (error: any) {
     throw new Error(`Failed to extract passport data: ${error.message}`);
   }
