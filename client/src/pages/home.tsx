@@ -1,8 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import PassportUpload from "@/components/passport-upload";
+import CameraCapture from "@/components/camera-capture";
 import JsonDisplay from "@/components/json-display";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Download, Upload, Camera } from "lucide-react";
 import { useState } from "react";
 import { validatePassportData } from "@/lib/validation";
 
@@ -40,34 +42,34 @@ export default function Home() {
   const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
 
   const exportToCSV = () => {
-    // Create CSV headers with quotes
+    // Create CSV headers
     const headers = [
-      '"Full Name"',
-      '"Date of Birth"',
-      '"Passport Number"',
-      '"Nationality"',
-      '"Date of Issue"',
-      '"Date of Expiry"',
-      '"Place of Birth"',
-      '"Issuing Authority"',
-      '"MRZ Line 1"',
-      '"MRZ Line 2"',
-      '"Confidence Score"',
-      '"Remarks"',
-      '"Valid"',
-      '"Extraction Notes"'
-    ].join(",");
+      "Full Name",
+      "Date of Birth",
+      "Passport Number",
+      "Nationality",
+      "Date of Issue",
+      "Date of Expiry",
+      "Place of Birth",
+      "Issuing Authority",
+      "MRZ Line 1",
+      "MRZ Line 2",
+      "Confidence Score",
+      "Remarks",
+      "Valid",
+      "Extraction Notes"
+    ].map(header => `"${header}"`).join(",");
 
     // Create CSV rows
     const rows = passportDataList.map((data) => [
-      data.fullName?.value || data.fullName || "",
-      data.dateOfBirth?.value || data.dateOfBirth || "",
-      data.passportNumber?.value || data.passportNumber || "",
-      data.nationality?.value || data.nationality || "",
-      data.dateOfIssue?.value || data.dateOfIssue || "",
-      data.dateOfExpiry?.value || data.dateOfExpiry || "",
-      data.placeOfBirth?.value || data.placeOfBirth || "",
-      data.issuingAuthority?.value || data.issuingAuthority || "",
+      data.fullName,
+      data.dateOfBirth,
+      data.passportNumber,
+      data.nationality,
+      data.dateOfIssue,
+      data.dateOfExpiry,
+      data.placeOfBirth,
+      data.issuingAuthority,
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
@@ -140,10 +142,26 @@ export default function Home() {
                   Extract Passport Data
                 </h2>
                 <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed">
-                  Upload passport images to automatically extract and structure their data using advanced AI technology. 
-                  The system supports batch processing for multiple passports with secure data handling.
+                  Choose how you want to capture passport data. Use your device's camera for instant capture or upload existing images.
                 </p>
-                <PassportUpload onDataExtracted={handleDataExtracted} />
+                <Tabs defaultValue="upload" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="upload" className="gap-2">
+                      <Upload className="h-4 w-4" />
+                      Upload Files
+                    </TabsTrigger>
+                    <TabsTrigger value="camera" className="gap-2">
+                      <Camera className="h-4 w-4" />
+                      Use Camera
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="upload">
+                    <PassportUpload onDataExtracted={handleDataExtracted} />
+                  </TabsContent>
+                  <TabsContent value="camera">
+                    <CameraCapture onImageCaptured={handleDataExtracted} />
+                  </TabsContent>
+                </Tabs>
               </div>
             </CardContent>
           </Card>
