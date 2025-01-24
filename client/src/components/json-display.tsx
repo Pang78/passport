@@ -47,7 +47,9 @@ export default function JsonDisplay({ data }: JsonDisplayProps) {
                 "text-sm font-semibold",
                 hasIssue ? "text-red-600" : "text-gray-900"
               )}>
-                {value as string}
+                {typeof value === 'object' && value !== null ? 
+                  value.value || JSON.stringify(value) : 
+                  String(value)}
               </dd>
             </div>
           );
