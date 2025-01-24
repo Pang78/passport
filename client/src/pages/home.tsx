@@ -66,19 +66,19 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-gray-50">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground">
+      <header className="bg-primary/95 text-primary-foreground shadow-md backdrop-blur-sm sticky top-0 z-10">
         <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-2 sm:gap-3">
               <img
-                src="/ica-invisible-guardians-logo-2.jpg"
+                src="ica-invisible-guardians-logo-2.jpg"
                 alt="ICA Logo"
-                className="h-8 sm:h-12 w-auto object-contain bg-white p-1 rounded"
+                className="h-8 sm:h-12 w-auto object-contain bg-white p-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
               />
               <div className="h-6 w-px bg-primary-foreground/20" />
-              <h1 className="text-base sm:text-lg font-semibold">
+              <h1 className="text-base sm:text-xl font-bold tracking-tight">
                 Passport Data Extractor
               </h1>
             </div>
@@ -90,15 +90,15 @@ export default function Home() {
       <main className="w-full max-w-7xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
         <div className="space-y-8">
           {/* Upload Section */}
-          <Card className="border-2 shadow-sm">
-            <CardContent className="p-8">
-              <div className="max-w-2xl">
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 mb-2 sm:mb-3">
+          <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-6 sm:p-8">
+              <div className="max-w-3xl mx-auto">
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mb-2 sm:mb-3">
                   Extract Passport Data
                 </h2>
-                <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
+                <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed">
                   Upload passport images to automatically extract and structure their data using advanced AI technology. 
-                  The system supports batch processing for multiple passports.
+                  The system supports batch processing for multiple passports with secure data handling.
                 </p>
                 <PassportUpload onDataExtracted={setPassportDataList} />
               </div>
@@ -107,13 +107,17 @@ export default function Home() {
 
           {/* Results Section */}
           {passportDataList.length > 0 && (
-            <Card className="border-2 shadow-sm">
+            <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardContent className="p-4 sm:p-8">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
                     Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
                   </h2>
-                  <Button onClick={exportToCSV} variant="outline" className="w-full sm:w-auto gap-2">
+                  <Button 
+                    onClick={exportToCSV} 
+                    variant="outline" 
+                    className="w-full sm:w-auto gap-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300"
+                  >
                     <Download className="w-4 h-4" />
                     Export CSV
                   </Button>
