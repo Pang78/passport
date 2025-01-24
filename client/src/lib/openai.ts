@@ -10,7 +10,7 @@ export async function extractPassportData(base64Image: string) {
       messages: [
         {
           role: "system",
-          content: "You are a passport data extraction expert. Analyze the image and return valid JSON data. Include confidence scores (0-1) for each field."
+          content: "You are a passport data extraction expert. Analyze the image and return valid JSON data. Include confidence scores (0-1) for each field. Also include a 'visual_description' field that describes what you see in the image, including any text you can identify."
         },
         {
           role: "user",
@@ -49,7 +49,8 @@ export async function extractPassportData(base64Image: string) {
 
     return {
       ...parsedContent,
-      overall_confidence: overall
+      overall_confidence: overall,
+      remarks: parsedContent.visual_description ? [parsedContent.visual_description] : []
     };
   } catch (error: any) {
     // Try to extract any content from OpenAI's response
