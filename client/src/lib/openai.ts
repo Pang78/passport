@@ -1,13 +1,14 @@
+
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function extractPassportData(base64Image: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4-vision-preview",
       max_tokens: 4096,
+      temperature: 0,
       messages: [
         {
           role: "system",
@@ -16,19 +17,16 @@ export async function extractPassportData(base64Image: string) {
         {
           role: "user",
           content: [
+            "Extract passport data from this image and respond with a JSON object containing: fullName, dateOfBirth (YYYY-MM-DD), passportNumber, nationality, dateOfIssue (YYYY-MM-DD), dateOfExpiry (YYYY-MM-DD), placeOfBirth, issuingAuthority, and MRZ lines. Include confidence scores between 0 and 1 for each field.",
             {
-              type: "text",
-              text: "Extract passport data from this image and respond with a JSON object containing: fullName, dateOfBirth (YYYY-MM-DD), passportNumber, nationality, dateOfIssue (YYYY-MM-DD), dateOfExpiry (YYYY-MM-DD), placeOfBirth, issuingAuthority, and MRZ lines. Include confidence scores between 0 and 1 for each field."
-            },
-            {
-              type: "image_url",
+              type: "image",
               image_url: {
                 url: `data:image/jpeg;base64,${base64Image}`
               }
             }
-          ],
+          ]
         }
-      ],
+      ]
     });
 
     const content = response.choices[0].message.content;
@@ -38,7 +36,6 @@ export async function extractPassportData(base64Image: string) {
 
     return JSON.parse(content);
   } catch (error: any) {
-    // Instead of throwing an error, return a structured response indicating failure
     return {
       data: {
         fullName: "Unknown",
