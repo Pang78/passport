@@ -18,34 +18,58 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
   const extractData = useMutation({
     mutationFn: async (files: File[]) => {
       const results: PassportData[] = [];
+      const errors: string[] = [];
       const total = files.length;
 
       for (let i = 0; i < files.length; i++) {
-        const formData = new FormData();
-        formData.append("image", files[i]);
+        try {
+          const formData = new FormData();
+          formData.append("image", files[i]);
 
-        const response = await fetch("/api/extract-passport", {
-          method: "POST",
-          body: formData,
-        });
+          const response = await fetch("/api/extract-passport", {
+            method: "POST",
+            body: formData,
+          });
 
-        if (!response.ok) {
-          throw new Error(await response.text());
+          if (!response.ok) {
+            const errorText = await response.text();
+            errors.push(`File ${files[i].name}: ${errorText}`);
+            continue;
+          }
+
+          const data = await response.json();
+          results.push(data);
+        } catch (error) {
+          errors.push(`File ${files[i].name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+          setProgress(((i + 1) / total) * 100);
         }
+      }
 
-        const data = await response.json();
-        results.push(data);
-        setProgress(((i + 1) / total) * 100);
+      if (errors.length > 0) {
+        if (results.length === 0) {
+          // If no files were processed successfully, throw an error
+          throw new Error(errors.join('\n'));
+        } else {
+          // If some files were processed successfully, show warning for failed ones
+          toast({
+            title: "Warning",
+            description: `Some files could not be processed:\n${errors.join('\n')}`,
+            variant: "destructive",
+          });
+        }
       }
 
       return results;
     },
     onSuccess: (data) => {
-      onDataExtracted(data);
-      toast({
-        title: "Success",
-        description: `${data.length} passport(s) processed successfully`,
-      });
+      if (data.length > 0) {
+        onDataExtracted(data);
+        toast({
+          title: "Success",
+          description: `${data.length} passport(s) processed successfully`,
+        });
+      }
       setProgress(0);
     },
     onError: (error: Error) => {
@@ -132,7 +156,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
             Upload passport images
           </label>
           <p className="text-xs text-gray-500">
-            Drop your images here or click to browse
+            Drop your passport images here or click to browse
           </p>
           <p className="text-xs text-gray-500">
             Supports multiple JPG and PNG files
