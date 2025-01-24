@@ -21,6 +21,19 @@ export type PassportData = {
   };
   remarks?: string[];
   isValid?: boolean;
+  confidence_scores?: {
+    fullName: number;
+    dateOfBirth: number;
+    passportNumber: number;
+    nationality: number;
+    dateOfIssue: number;
+    dateOfExpiry: number;
+    placeOfBirth: number;
+    issuingAuthority: number;
+    mrz: number;
+  };
+  overall_confidence?: number;
+  extraction_notes?: string[];
 };
 
 export default function Home() {
@@ -39,8 +52,10 @@ export default function Home() {
       "Issuing Authority",
       "MRZ Line 1",
       "MRZ Line 2",
+      "Confidence Score",
       "Remarks",
-      "Valid"
+      "Valid",
+      "Extraction Notes"
     ].join(",");
 
     // Create CSV rows
@@ -55,8 +70,10 @@ export default function Home() {
       data.issuingAuthority,
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
+      data.overall_confidence?.toFixed(2) || "0",
       (data.remarks || []).join("; "),
-      data.isValid ? "Yes" : "No"
+      data.isValid ? "Yes" : "No",
+      (data.extraction_notes || []).join("; ")
     ].map(value => `"${value}"`).join(","));
 
     // Combine headers and rows
@@ -79,7 +96,13 @@ export default function Home() {
       return {
         ...passport,
         isValid,
-        remarks,
+        remarks: [
+          ...(remarks || []),
+          ...(passport.extraction_notes || []),
+          ...(passport.overall_confidence !== undefined && passport.overall_confidence < 0.5 
+            ? [`Low confidence extraction (${(passport.overall_confidence * 100).toFixed(1)}%)`] 
+            : [])
+        ],
       };
     });
     setPassportDataList(validatedData);
@@ -148,9 +171,18 @@ export default function Home() {
                       key={index} 
                       className="border-t pt-8 first:border-t-0 first:pt-0"
                     >
-                      <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         Passport {index + 1}
                       </h3>
+                      {data.overall_confidence !== undefined && (
+                        <p className={`text-sm mb-4 ${
+                          data.overall_confidence < 0.5 ? 'text-red-600' : 
+                          data.overall_confidence < 0.8 ? 'text-yellow-600' : 
+                          'text-green-600'
+                        }`}>
+                          Extraction Confidence: {(data.overall_confidence * 100).toFixed(1)}%
+                        </p>
+                      )}
                       {data.remarks && data.remarks.length > 0 && (
                         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                           <p className="text-sm font-medium text-red-800 mb-2">Anomalies Detected:</p>

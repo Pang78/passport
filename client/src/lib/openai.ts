@@ -10,18 +10,42 @@ export async function extractPassportData(base64Image: string) {
       messages: [
         {
           role: "system",
-          content: `You are a passport data extraction expert. Analyze the passport image and extract the following fields in JSON format:
-          - fullName
-          - dateOfBirth (YYYY-MM-DD)
-          - passportNumber
-          - nationality
-          - dateOfIssue (YYYY-MM-DD)
-          - dateOfExpiry (YYYY-MM-DD)
-          - placeOfBirth
-          - issuingAuthority
-          - mrz (if present, include line1 and line2)
+          content: `You are a passport data extraction expert. Analyze the passport image and extract data with confidence scores. Even if the image is unclear or unrecognizable, provide your best attempt at extraction and indicate low confidence.
 
-          Ensure dates are in ISO format and clean any OCR artifacts from the text.`
+For each field, provide:
+- The extracted value
+- A confidence score (0-1) indicating how certain you are about the extraction
+
+Return the data in this format:
+{
+  "data": {
+    "fullName": string,
+    "dateOfBirth": string (YYYY-MM-DD),
+    "passportNumber": string,
+    "nationality": string,
+    "dateOfIssue": string (YYYY-MM-DD),
+    "dateOfExpiry": string (YYYY-MM-DD),
+    "placeOfBirth": string,
+    "issuingAuthority": string,
+    "mrz": {
+      "line1": string,
+      "line2": string
+    }
+  },
+  "confidence_scores": {
+    "fullName": number,
+    "dateOfBirth": number,
+    "passportNumber": number,
+    "nationality": number,
+    "dateOfIssue": number,
+    "dateOfExpiry": number,
+    "placeOfBirth": number,
+    "issuingAuthority": number,
+    "mrz": number
+  },
+  "overall_confidence": number,
+  "extraction_notes": string[]
+}`
         },
         {
           role: "user",
@@ -49,6 +73,35 @@ export async function extractPassportData(base64Image: string) {
 
     return JSON.parse(content);
   } catch (error: any) {
-    throw new Error(`Failed to extract passport data: ${error.message}`);
+    // Instead of throwing an error, return a structured response indicating failure
+    return {
+      data: {
+        fullName: "Unknown",
+        dateOfBirth: "",
+        passportNumber: "",
+        nationality: "",
+        dateOfIssue: "",
+        dateOfExpiry: "",
+        placeOfBirth: "",
+        issuingAuthority: "",
+        mrz: {
+          line1: "",
+          line2: ""
+        }
+      },
+      confidence_scores: {
+        fullName: 0,
+        dateOfBirth: 0,
+        passportNumber: 0,
+        nationality: 0,
+        dateOfIssue: 0,
+        dateOfExpiry: 0,
+        placeOfBirth: 0,
+        issuingAuthority: 0,
+        mrz: 0
+      },
+      overall_confidence: 0,
+      extraction_notes: [`Failed to process image: ${error.message}`]
+    };
   }
 }
