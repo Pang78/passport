@@ -73,10 +73,10 @@ export default function Home() {
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
-      (data.remarks || []).join("; "),
+      Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
       data.isValid ? "Yes" : "No",
-      (data.extraction_notes || []).join("; ")
-    ].map(value => `"${value}"`).join(","));
+      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
+    ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
 
     // Combine headers and rows
     const csvContent = [headers, ...rows].join("\n");
