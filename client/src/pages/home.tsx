@@ -73,9 +73,9 @@ export default function Home() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <img
-                src="/ica-invisible-guardians-logo-2.jpg"
+                src="/ica-logo.jpg"
                 alt="ICA Logo"
-                className="h-8 w-auto"
+                className="h-12 w-auto"
               />
               <div className="h-6 w-px bg-gray-200" />
               <h1 className="text-lg font-semibold text-gray-900">
