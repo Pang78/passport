@@ -60,16 +60,16 @@ export default function Home() {
 
     // Create CSV rows
     const rows = passportDataList.map((data) => [
-      data.fullName?.value || "",
-      data.dateOfBirth?.value || "",
-      data.passportNumber?.value || "",
-      data.nationality?.value || "",
-      data.dateOfIssue?.value || "",
-      data.dateOfExpiry?.value || "",
-      data.placeOfBirth?.value || "",
-      data.issuingAuthority?.value || "",
-      data.mrz?.line1?.value || "",
-      data.mrz?.line2?.value || "",
+      data.fullName,
+      data.dateOfBirth,
+      data.passportNumber,
+      data.nationality,
+      data.dateOfIssue,
+      data.dateOfExpiry,
+      data.placeOfBirth,
+      data.issuingAuthority,
+      data.mrz?.line1 || "",
+      data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
       (data.remarks || []).join("; "),
       data.isValid ? "Yes" : "No",
@@ -116,7 +116,7 @@ export default function Home() {
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-2 sm:gap-3">
               <img
-                src="/icalogo.png"
+                src="/ica-invisible-guardians-logo-2.jpg"
                 alt="ICA Logo"
                 className="h-8 sm:h-12 w-auto object-contain bg-white p-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
               />
