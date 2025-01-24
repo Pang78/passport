@@ -1,6 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import PassportUpload from "@/components/passport-upload";
 import JsonDisplay from "@/components/json-display";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import { useState } from "react";
 
 export type PassportData = {
@@ -19,7 +21,49 @@ export type PassportData = {
 };
 
 export default function Home() {
-  const [passportData, setPassportData] = useState<PassportData | null>(null);
+  const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
+
+  const exportToCSV = () => {
+    // Create CSV headers
+    const headers = [
+      "Full Name",
+      "Date of Birth",
+      "Passport Number",
+      "Nationality",
+      "Date of Issue",
+      "Date of Expiry",
+      "Place of Birth",
+      "Issuing Authority",
+      "MRZ Line 1",
+      "MRZ Line 2",
+    ].join(",");
+
+    // Create CSV rows
+    const rows = passportDataList.map((data) => [
+      data.fullName,
+      data.dateOfBirth,
+      data.passportNumber,
+      data.nationality,
+      data.dateOfIssue,
+      data.dateOfExpiry,
+      data.placeOfBirth,
+      data.issuingAuthority,
+      data.mrz?.line1 || "",
+      data.mrz?.line2 || "",
+    ].map(value => `"${value}"`).join(","));
+
+    // Combine headers and rows
+    const csvContent = [headers, ...rows].join("\n");
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `passport_data_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -30,18 +74,33 @@ export default function Home() {
               Passport Data Extractor
             </h1>
             <p className="text-gray-600 mb-8">
-              Upload a passport image to extract and structure its data using AI.
+              Upload passport images to extract and structure their data using AI.
             </p>
-            
-            <PassportUpload onDataExtracted={setPassportData} />
+
+            <PassportUpload onDataExtracted={setPassportDataList} />
           </CardContent>
         </Card>
 
-        {passportData && (
+        {passportDataList.length > 0 && (
           <Card className="border-2">
             <CardContent className="p-6">
-              <h2 className="text-2xl font-semibold mb-4">Extracted Data</h2>
-              <JsonDisplay data={passportData} />
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold">
+                  Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
+                </h2>
+                <Button onClick={exportToCSV} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </Button>
+              </div>
+              <div className="space-y-8">
+                {passportDataList.map((data, index) => (
+                  <div key={index} className="border-t pt-6 first:border-t-0 first:pt-0">
+                    <h3 className="text-lg font-medium mb-4">Passport {index + 1}</h3>
+                    <JsonDisplay data={data} />
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}

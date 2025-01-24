@@ -7,35 +7,46 @@ import { Upload, FileWarning } from "lucide-react";
 import type { PassportData } from "@/pages/home";
 
 interface PassportUploadProps {
-  onDataExtracted: (data: PassportData) => void;
+  onDataExtracted: (data: PassportData[]) => void;
 }
 
 export default function PassportUpload({ onDataExtracted }: PassportUploadProps) {
   const [dragActive, setDragActive] = useState(false);
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
   const extractData = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("image", file);
+    mutationFn: async (files: File[]) => {
+      const results: PassportData[] = [];
+      const total = files.length;
 
-      const response = await fetch("/api/extract-passport", {
-        method: "POST",
-        body: formData,
-      });
+      for (let i = 0; i < files.length; i++) {
+        const formData = new FormData();
+        formData.append("image", files[i]);
 
-      if (!response.ok) {
-        throw new Error(await response.text());
+        const response = await fetch("/api/extract-passport", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const data = await response.json();
+        results.push(data);
+        setProgress(((i + 1) / total) * 100);
       }
 
-      return response.json();
+      return results;
     },
     onSuccess: (data) => {
       onDataExtracted(data);
       toast({
         title: "Success",
-        description: "Passport data extracted successfully",
+        description: `${data.length} passport(s) processed successfully`,
       });
+      setProgress(0);
     },
     onError: (error: Error) => {
       toast({
@@ -43,6 +54,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         description: error.message,
         variant: "destructive",
       });
+      setProgress(0);
     },
   });
 
@@ -61,22 +73,25 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
     e.stopPropagation();
     setDragActive(false);
 
-    const file = e.dataTransfer?.files?.[0];
-    if (file && (file.type === "image/jpeg" || file.type === "image/png")) {
-      extractData.mutate(file);
+    const files = Array.from(e.dataTransfer?.files || []).filter(
+      file => file.type === "image/jpeg" || file.type === "image/png"
+    );
+
+    if (files.length > 0) {
+      extractData.mutate(files);
     } else {
       toast({
-        title: "Invalid file",
-        description: "Please upload a JPG or PNG image",
+        title: "Invalid files",
+        description: "Please upload JPG or PNG images only",
         variant: "destructive",
       });
     }
   }, [extractData, toast]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      extractData.mutate(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      extractData.mutate(files);
     }
   }, [extractData]);
 
@@ -97,6 +112,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         accept="image/jpeg,image/png"
         onChange={handleChange}
         disabled={extractData.isPending}
+        multiple
       />
 
       <div className="space-y-4">
@@ -113,13 +129,13 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
             htmlFor="file-upload"
             className="block text-sm font-medium text-gray-700"
           >
-            Upload passport image
+            Upload passport images
           </label>
           <p className="text-xs text-gray-500">
-            Drop your image here or click to browse
+            Drop your images here or click to browse
           </p>
           <p className="text-xs text-gray-500">
-            Supports JPG and PNG files
+            Supports multiple JPG and PNG files
           </p>
         </div>
 
@@ -128,14 +144,14 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
           onClick={() => document.getElementById("file-upload")?.click()}
           disabled={extractData.isPending}
         >
-          Select File
+          Select Files
         </Button>
       </div>
 
       {extractData.isPending && (
         <div className="mt-4 space-y-2">
-          <Progress value={33} className="w-full" />
-          <p className="text-sm text-gray-500">Processing image...</p>
+          <Progress value={progress} className="w-full" />
+          <p className="text-sm text-gray-500">Processing images...</p>
         </div>
       )}
     </div>
