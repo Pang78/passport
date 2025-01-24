@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function extractPassportData(base64Image: string) {
@@ -36,23 +35,33 @@ export async function extractPassportData(base64Image: string) {
       throw new Error("No content received from OpenAI");
     }
 
-    return JSON.parse(content);
-  } catch (error: any) {
-    // Instead of throwing an error, return a structured response indicating failure
+    const parsedContent = JSON.parse(content);
+    const confidenceScores = parsedContent.confidence_scores || {};
+
+    // Calculate overall confidence
+    const scores = Object.values(confidenceScores) as number[];
+    const overall = scores.length > 0 
+      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+      : 0;
+
     return {
-      data: {
-        fullName: "Unknown",
-        dateOfBirth: "",
-        passportNumber: "",
-        nationality: "",
-        dateOfIssue: "",
-        dateOfExpiry: "",
-        placeOfBirth: "",
-        issuingAuthority: "",
-        mrz: {
-          line1: "",
-          line2: ""
-        }
+      ...parsedContent,
+      overall_confidence: overall
+    };
+  } catch (error: any) {
+    // Return a structured response indicating failure
+    return {
+      fullName: "Unknown",
+      dateOfBirth: "",
+      passportNumber: "",
+      nationality: "",
+      dateOfIssue: "",
+      dateOfExpiry: "",
+      placeOfBirth: "",
+      issuingAuthority: "",
+      mrz: {
+        line1: "",
+        line2: ""
       },
       confidence_scores: {
         fullName: 0,
