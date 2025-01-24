@@ -24,7 +24,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       for (let i = 0; i < files.length; i++) {
         try {
           const formData = new FormData();
-          formData.append("image", files[i]);
+          formData.append("file", files[i]); 
 
           const response = await fetch("/api/extract-passport", {
             method: "POST",
@@ -48,10 +48,8 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
 
       if (errors.length > 0) {
         if (results.length === 0) {
-          // If no files were processed successfully, throw an error
           throw new Error(errors.join('\n'));
         } else {
-          // If some files were processed successfully, show warning for failed ones
           toast({
             title: "Warning",
             description: `Some files could not be processed:\n${errors.join('\n')}`,
@@ -98,7 +96,9 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
     setDragActive(false);
 
     const files = Array.from(e.dataTransfer?.files || []).filter(
-      file => file.type === "image/jpeg" || file.type === "image/png"
+      file => file.type === "image/jpeg" || 
+             file.type === "image/png" || 
+             file.type === "application/pdf"
     );
 
     if (files.length > 0) {
@@ -106,7 +106,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
     } else {
       toast({
         title: "Invalid files",
-        description: "Please upload JPG or PNG images only",
+        description: "Please upload JPG, PNG or PDF files only",
         variant: "destructive",
       });
     }
@@ -133,7 +133,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         type="file"
         id="file-upload"
         className="hidden"
-        accept="image/jpeg,image/png"
+        accept="image/jpeg,image/png,application/pdf"
         onChange={handleChange}
         disabled={extractData.isPending}
         multiple
@@ -153,13 +153,13 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
             htmlFor="file-upload"
             className="block text-sm font-medium text-gray-700"
           >
-            Upload passport images
+            Upload passport documents
           </label>
           <p className="text-xs text-gray-500">
-            Drop your passport images here or click to browse
+            Drop your passport images or PDFs here or click to browse
           </p>
           <p className="text-xs text-gray-500">
-            Supports multiple JPG and PNG files
+            Supports multiple JPG, PNG and PDF files
           </p>
         </div>
 
@@ -175,7 +175,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       {extractData.isPending && (
         <div className="mt-4 space-y-2">
           <Progress value={progress} className="w-full" />
-          <p className="text-sm text-gray-500">Processing images...</p>
+          <p className="text-sm text-gray-500">Processing files...</p>
         </div>
       )}
     </div>
