@@ -11,7 +11,7 @@ export async function extractPassportData(base64Image: string) {
   console.log("Attempting OpenAI request...");
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision",
+      model: "gpt-4-vision-preview",
       max_tokens: 4096,
       messages: [
         {
