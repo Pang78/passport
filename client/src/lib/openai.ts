@@ -52,9 +52,43 @@ export async function extractPassportData(base64Image: string) {
       overall_confidence: overall
     };
   } catch (error: any) {
-    // Return a structured response indicating failure
+    // Try to extract any content from OpenAI's response
+    const content = error.response?.choices?.[0]?.message?.content;
+    
+    // If we have content but JSON parsing failed, return it as extraction notes
+    if (content) {
+      return {
+        fullName: "",
+        dateOfBirth: "",
+        passportNumber: "",
+        nationality: "",
+        dateOfIssue: "",
+        dateOfExpiry: "",
+        placeOfBirth: "",
+        issuingAuthority: "",
+        mrz: {
+          line1: "",
+          line2: ""
+        },
+        confidence_scores: {
+          fullName: 0,
+          dateOfBirth: 0,
+          passportNumber: 0,
+          nationality: 0,
+          dateOfIssue: 0,
+          dateOfExpiry: 0,
+          placeOfBirth: 0,
+          issuingAuthority: 0,
+          mrz: 0
+        },
+        overall_confidence: 0,
+        extraction_notes: [content]
+      };
+    }
+
+    // Fallback for other errors
     return {
-      fullName: "Unknown",
+      fullName: "",
       dateOfBirth: "",
       passportNumber: "",
       nationality: "",
@@ -78,7 +112,7 @@ export async function extractPassportData(base64Image: string) {
         mrz: 0
       },
       overall_confidence: 0,
-      extraction_notes: [`Failed to process image: ${error.message}`]
+      extraction_notes: [`Error: ${error.message}`]
     };
   }
 }
