@@ -6,49 +6,19 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export async function extractPassportData(base64Image: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-vision-preview",
+      max_tokens: 4096,
       messages: [
         {
           role: "system",
-          content: `You are a passport data extraction expert. Your task is to analyze passport images and return a JSON object containing the extracted data. Even if the image is unclear, provide your best attempt at extraction with appropriate confidence scores.
-
-You must respond with a valid JSON object containing:
-{
-  "data": {
-    "fullName": string,       // Full name from passport
-    "dateOfBirth": string,    // Format: YYYY-MM-DD
-    "passportNumber": string, // Passport number
-    "nationality": string,    // Country of nationality
-    "dateOfIssue": string,    // Format: YYYY-MM-DD
-    "dateOfExpiry": string,   // Format: YYYY-MM-DD
-    "placeOfBirth": string,   // Place of birth
-    "issuingAuthority": string, // Authority that issued passport
-    "mrz": {
-      "line1": string,        // First MRZ line
-      "line2": string         // Second MRZ line
-    }
-  },
-  "confidence_scores": {
-    "fullName": number,       // 0-1 confidence score
-    "dateOfBirth": number,    // 0-1 confidence score
-    "passportNumber": number, // 0-1 confidence score
-    "nationality": number,    // 0-1 confidence score
-    "dateOfIssue": number,    // 0-1 confidence score
-    "dateOfExpiry": number,   // 0-1 confidence score
-    "placeOfBirth": number,   // 0-1 confidence score
-    "issuingAuthority": number, // 0-1 confidence score
-    "mrz": number            // 0-1 confidence score
-  },
-  "overall_confidence": number, // 0-1 overall confidence
-  "extraction_notes": string[]  // Array of notes/warnings
-}`
+          content: "You are a passport data extraction expert. Analyze the image and return valid JSON data. Include confidence scores (0-1) for each field."
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Extract the passport data from this image."
+              text: "Extract passport data from this image and respond with a JSON object containing: fullName, dateOfBirth (YYYY-MM-DD), passportNumber, nationality, dateOfIssue (YYYY-MM-DD), dateOfExpiry (YYYY-MM-DD), placeOfBirth, issuingAuthority, and MRZ lines. Include confidence scores between 0 and 1 for each field."
             },
             {
               type: "image_url",
@@ -57,9 +27,8 @@ You must respond with a valid JSON object containing:
               }
             }
           ],
-        },
+        }
       ],
-      response_format: { type: "json_object" },
     });
 
     const content = response.choices[0].message.content;
