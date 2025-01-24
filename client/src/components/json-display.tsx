@@ -1,82 +1,224 @@
-import { Card } from "@/components/ui/card";
-import type { PassportData } from "@/pages/home";
-import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import PassportUpload from "@/components/passport-upload";
+import CameraCapture from "@/components/camera-capture";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Download, Upload, Camera } from "lucide-react";
+import { useState } from "react";
+import { validatePassportData } from "@/lib/validation";
 
-interface JsonDisplayProps {
-  data: PassportData;
-}
+export type PassportData = {
+  fullName: string;
+  dateOfBirth: string;
+  passportNumber: string;
+  nationality: string;
+  dateOfIssue: string;
+  dateOfExpiry: string;
+  placeOfBirth: string;
+  issuingAuthority: string;
+  mrz?: {
+    line1: string;
+    line2: string;
+  };
+  remarks?: string[];
+  isValid?: boolean;
+  confidence_scores?: {
+    fullName: number;
+    dateOfBirth: number;
+    passportNumber: number;
+    nationality: number;
+    dateOfIssue: number;
+    dateOfExpiry: number;
+    placeOfBirth: number;
+    issuingAuthority: number;
+    mrz: number;
+  };
+  overall_confidence?: number;
+  extraction_notes?: string[];
+};
 
-export default function JsonDisplay({ data }: JsonDisplayProps) {
-  const hasRemarks = data.remarks && data.remarks.length > 0;
+export default function Home() {
+  const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
 
-  const getConfidenceColor = (score: number) => {
-    if (score < 0.5) return "text-red-600";
-    if (score < 0.8) return "text-yellow-600";
-    return "text-green-600";
+  const exportToCSV = () => {
+    // Create CSV headers
+    const headers = [
+      "Full Name",
+      "Date of Birth",
+      "Passport Number",
+      "Nationality",
+      "Date of Issue",
+      "Date of Expiry",
+      "Place of Birth",
+      "Issuing Authority",
+      "MRZ Line 1",
+      "MRZ Line 2",
+      "Overall Confidence",
+      "Remarks",
+      "Valid",
+      "Extraction Notes"
+    ].map(header => `"${header}"`).join(",");
+
+    // Create CSV rows
+    const rows = passportDataList.map((data) => [
+      data.fullName || "",
+      data.dateOfBirth || "",
+      data.passportNumber || "",
+      data.nationality || "",
+      data.dateOfIssue || "",
+      data.dateOfExpiry || "",
+      data.placeOfBirth || "",
+      data.issuingAuthority || "",
+      data.mrz?.line1 || "",
+      data.mrz?.line2 || "",
+      data.overall_confidence?.toFixed(2) || "0",
+      Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
+      data.isValid ? "Yes" : "No",
+      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
+    ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
+
+    // Combine headers and rows
+    const csvContent = [headers, ...rows].join("\n");
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `passport_data_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDataExtracted = (data: PassportData[]) => {
+    // Validate each passport data and add remarks
+    const validatedData = data.map(passport => {
+      const { isValid, remarks } = validatePassportData(passport);
+      return {
+        ...passport,
+        isValid,
+        remarks: [
+          ...(remarks || []),
+          ...(passport.extraction_notes || []),
+          ...(passport.overall_confidence !== undefined && passport.overall_confidence < 0.5 
+            ? [`Low confidence extraction (${(passport.overall_confidence * 100).toFixed(1)}%)`] 
+            : [])
+        ],
+      };
+    });
+    setPassportDataList(validatedData);
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4 bg-gray-50">
-        <pre className="text-sm overflow-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Object.entries(data).map(([key, value]) => {
-          if (key === "mrz" || key === "remarks" || key === "isValid" || key === "confidence_scores" || key === "overall_confidence" || key === "extraction_notes" || typeof value === "object") return null;
-
-          const hasIssue = hasRemarks && data.remarks?.some(remark => remark.toLowerCase().includes(key.toLowerCase()));
-          const confidenceScore = data.confidence_scores?.[key as keyof typeof data.confidence_scores];
-
-          return (
-            <div key={key} className="space-y-1">
-              <dt className="text-sm font-medium text-gray-500 capitalize flex justify-between items-center">
-                <span>{key.replace(/([A-Z])/g, " $1").trim()}</span>
-                {confidenceScore !== undefined && (
-                  <span className={cn(
-                    "text-xs font-normal",
-                    getConfidenceColor(confidenceScore)
-                  )}>
-                    {(confidenceScore * 100).toFixed(1)}% confidence
-                  </span>
-                )}
-              </dt>
-              <dd className={cn(
-                "text-sm font-semibold",
-                hasIssue ? "text-red-600" : "text-gray-900"
-              )}>
-                {typeof value === 'object' && value !== null 
-                  ? JSON.stringify(value, null, 2)
-                  : value === null 
-                    ? "N/A" 
-                    : String(value)}
-              </dd>
+    <div className="min-h-screen bg-gradient-to-b from-background to-gray-50">
+      {/* Header */}
+      <header className="bg-primary/95 text-primary-foreground shadow-md backdrop-blur-sm sticky top-0 z-10">
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <img
+                src="/icalogo.png"
+                alt="ICA Logo"
+                className="h-8 sm:h-12 w-auto object-contain bg-white p-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
+              />
+              <div className="h-6 w-px bg-primary-foreground/20" />
+              <h1 className="text-base sm:text-xl font-bold tracking-tight">
+                Passport Data Extractor
+              </h1>
             </div>
-          );
-        })}
-      </div>
-
-      {data.mrz && (
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-medium text-gray-500">MRZ Data</h3>
-            {data.confidence_scores?.mrz !== undefined && (
-              <span className={cn(
-                "text-xs",
-                getConfidenceColor(data.confidence_scores.mrz)
-              )}>
-                {(data.confidence_scores.mrz * 100).toFixed(1)}% confidence
-              </span>
-            )}
-          </div>
-          <div className="font-mono text-xs bg-gray-50 p-3 rounded">
-            <div>{data.mrz.line1}</div>
-            <div>{data.mrz.line2}</div>
           </div>
         </div>
-      )}
+      </header>
+
+      {/* Main Content */}
+      <main className="w-full max-w-7xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+          {/* Upload Section */}
+          <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-6 sm:p-8">
+              <div className="max-w-3xl mx-auto">
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mb-2 sm:mb-3">
+                  Extract Passport Data
+                </h2>
+                <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed">
+                  Choose how you want to capture passport data. Use your device's camera for instant capture or upload existing images.
+                </p>
+                <Tabs defaultValue="upload" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="upload" className="gap-2">
+                      <Upload className="h-4 w-4" />
+                      Upload Files
+                    </TabsTrigger>
+                    <TabsTrigger value="camera" className="gap-2">
+                      <Camera className="h-4 w-4" />
+                      Use Camera
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="upload">
+                    <PassportUpload onDataExtracted={handleDataExtracted} />
+                  </TabsContent>
+                  <TabsContent value="camera">
+                    <CameraCapture onImageCaptured={handleDataExtracted} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Results Section */}
+          {passportDataList.length > 0 && (
+            <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <CardContent className="p-4 sm:p-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                    Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
+                  </h2>
+                  <Button 
+                    onClick={exportToCSV} 
+                    variant="outline" 
+                    className="w-full sm:w-auto gap-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </Button>
+                </div>
+
+                {/* Structured Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passport Number</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nationality</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Birth</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Expiry</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valid</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {passportDataList.map((data, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.fullName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.passportNumber}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.nationality}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.dateOfBirth}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.dateOfExpiry}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.isValid ? "Yes" : "No"}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {data.overall_confidence !== undefined ? `${(data.overall_confidence * 100).toFixed(1)}%` : "N/A"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
