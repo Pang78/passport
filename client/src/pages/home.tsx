@@ -54,7 +54,7 @@ export default function Home() {
       "Issuing Authority",
       "MRZ Line 1",
       "MRZ Line 2",
-      "Confidence Score",
+      "Overall Confidence",
       "Remarks",
       "Valid",
       "Extraction Notes"
@@ -62,14 +62,14 @@ export default function Home() {
 
     // Create CSV rows
     const rows = passportDataList.map((data) => [
-      data.fullName,
-      data.dateOfBirth,
-      data.passportNumber,
-      data.nationality,
-      data.dateOfIssue,
-      data.dateOfExpiry,
-      data.placeOfBirth,
-      data.issuingAuthority,
+      data.fullName || "",
+      data.dateOfBirth || "",
+      data.passportNumber || "",
+      data.nationality || "",
+      data.dateOfIssue || "",
+      data.dateOfExpiry || "",
+      data.placeOfBirth || "",
+      data.issuingAuthority || "",
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
