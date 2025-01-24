@@ -86,15 +86,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Logo */}
-      <div className="flex justify-center mb-8">
-        <img 
-          src="/ica-invisible-guardians-logo-2.jpg" 
-          alt="ICA Logo" 
-          className="h-16 sm:h-20"
-        />
-      </div>
-      
       {/* Main Content */}
       <main className="w-full max-w-7xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
         <div className="space-y-8">
