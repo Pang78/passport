@@ -8,6 +8,7 @@ const openai = new OpenAI({
 });
 
 export async function extractPassportData(base64Image: string) {
+  console.log("Attempting OpenAI request...");
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4-vision-preview",
@@ -53,6 +54,7 @@ export async function extractPassportData(base64Image: string) {
       temperature: 0, // Use deterministic responses for consistency
     });
 
+    console.log("OpenAI response received:", response.choices[0]);
     const content = response.choices[0].message.content;
     if (!content) {
       throw new Error("No content received from OpenAI");
@@ -81,6 +83,7 @@ export async function extractPassportData(base64Image: string) {
       throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
     }
   } catch (error: any) {
+    console.error("OpenAI request failed:", error);
     let errorMessage = "Failed to process image";
     let extractionNotes = [];
 
