@@ -1,7 +1,11 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Initialize OpenAI client with error handling
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 3, // Add retries for transient failures
+  timeout: 30000, // 30 second timeout
+});
 
 export async function extractPassportData(base64Image: string) {
   try {
@@ -38,7 +42,24 @@ export async function extractPassportData(base64Image: string) {
 
     return JSON.parse(content);
   } catch (error: any) {
-    // Instead of throwing an error, return a structured response indicating failure
+    // Classify and handle different types of errors
+    let errorMessage = "Failed to process image";
+    let extractionNotes = [];
+
+    if (error.status === 429) {
+      errorMessage = "API rate limit exceeded. Please try again in a few minutes.";
+      extractionNotes.push("Rate limit reached - temporary service interruption");
+    } else if (error.status === 401) {
+      errorMessage = "Authentication error with AI service";
+      extractionNotes.push("API authentication failed");
+    } else if (error.name === "AbortError") {
+      errorMessage = "Request timed out. Please try again.";
+      extractionNotes.push("Processing timeout - possible network issues");
+    } else if (error.message.includes("JSON")) {
+      errorMessage = "Invalid response format from AI service";
+      extractionNotes.push("Data parsing error - unexpected response format");
+    }
+
     return {
       data: {
         fullName: "Unknown",
@@ -66,7 +87,7 @@ export async function extractPassportData(base64Image: string) {
         mrz: 0
       },
       overall_confidence: 0,
-      extraction_notes: [`Failed to process image: ${error.message}`]
+      extraction_notes: [errorMessage, ...extractionNotes]
     };
   }
 }
