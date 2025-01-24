@@ -12,31 +12,33 @@ interface PassportUploadProps {
 
 export default function PassportUpload({ onDataExtracted }: PassportUploadProps) {
   const [dragActive, setDragActive] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [completedFiles, setCompletedFiles] = useState(0);
   const { toast } = useToast();
 
   const extractData = useMutation({
     mutationFn: async (files: File[]) => {
-      const results: PassportData[] = [];
-      const total = files.length;
+      setCompletedFiles(0);
 
-      for (let i = 0; i < files.length; i++) {
-        const formData = new FormData();
-        formData.append("image", files[i]);
+      // Process all files concurrently using Promise.all
+      const results = await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append("image", file);
 
-        const response = await fetch("/api/extract-passport", {
-          method: "POST",
-          body: formData,
-        });
+          const response = await fetch("/api/extract-passport", {
+            method: "POST",
+            body: formData,
+          });
 
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
+          if (!response.ok) {
+            throw new Error(`Failed to process ${file.name}: ${await response.text()}`);
+          }
 
-        const data = await response.json();
-        results.push(data);
-        setProgress(((i + 1) / total) * 100);
-      }
+          const data = await response.json();
+          setCompletedFiles(prev => prev + 1);
+          return data;
+        })
+      );
 
       return results;
     },
@@ -46,7 +48,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         title: "Success",
         description: `${data.length} passport(s) processed successfully`,
       });
-      setProgress(0);
+      setCompletedFiles(0);
     },
     onError: (error: Error) => {
       toast({
@@ -54,7 +56,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         description: error.message,
         variant: "destructive",
       });
-      setProgress(0);
+      setCompletedFiles(0);
     },
   });
 
@@ -94,6 +96,10 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       extractData.mutate(files);
     }
   }, [extractData]);
+
+  const progress = extractData.isPending && completedFiles > 0
+    ? (completedFiles / (extractData.variables?.length || 1)) * 100
+    : 0;
 
   return (
     <div
@@ -151,7 +157,9 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       {extractData.isPending && (
         <div className="mt-4 space-y-2">
           <Progress value={progress} className="w-full" />
-          <p className="text-sm text-gray-500">Processing images...</p>
+          <p className="text-sm text-gray-500">
+            Processing {completedFiles} of {extractData.variables?.length} images...
+          </p>
         </div>
       )}
     </div>
