@@ -40,22 +40,22 @@ export default function Home() {
   const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
 
   const exportToCSV = () => {
-    // Create CSV headers
+    // Create CSV headers with quotes
     const headers = [
-      "Full Name",
-      "Date of Birth",
-      "Passport Number",
-      "Nationality",
-      "Date of Issue",
-      "Date of Expiry",
-      "Place of Birth",
-      "Issuing Authority",
-      "MRZ Line 1",
-      "MRZ Line 2",
-      "Confidence Score",
-      "Remarks",
-      "Valid",
-      "Extraction Notes"
+      '"Full Name"',
+      '"Date of Birth"',
+      '"Passport Number"',
+      '"Nationality"',
+      '"Date of Issue"',
+      '"Date of Expiry"',
+      '"Place of Birth"',
+      '"Issuing Authority"',
+      '"MRZ Line 1"',
+      '"MRZ Line 2"',
+      '"Confidence Score"',
+      '"Remarks"',
+      '"Valid"',
+      '"Extraction Notes"'
     ].join(",");
 
     // Create CSV rows
