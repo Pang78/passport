@@ -3,8 +3,8 @@ import OpenAI from "openai";
 // Initialize OpenAI client with error handling
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY,
-  maxRetries: 3, // Add retries for transient failures
-  timeout: 30000, // 30 second timeout
+  maxRetries: 3,
+  timeout: 30000,
 });
 
 export async function extractPassportData(base64Image: string) {
@@ -15,14 +15,31 @@ export async function extractPassportData(base64Image: string) {
       messages: [
         {
           role: "system",
-          content: "You are a passport data extraction expert. Analyze the image and return valid JSON data. Include confidence scores (0-1) for each field."
+          content: `You are a passport data extraction expert. Extract data from passport images and return it in a specific JSON format with confidence scores.
+          Follow these rules:
+          1. Dates should be in YYYY-MM-DD format
+          2. Names should be in UPPERCASE as shown in passport
+          3. Passport numbers should preserve exact formatting
+          4. Include confidence scores between 0-1 for each field
+          5. If a field is not clearly visible, use a lower confidence score
+          6. MRZ lines should maintain exact format and spacing`
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Extract passport data from this image and respond with a JSON object containing: fullName, dateOfBirth (YYYY-MM-DD), passportNumber, nationality, dateOfIssue (YYYY-MM-DD), dateOfExpiry (YYYY-MM-DD), placeOfBirth, issuingAuthority, and MRZ lines. Include confidence scores between 0 and 1 for each field."
+              text: "Extract the following data from this passport image and format as JSON:\n" +
+                    "- fullName (as shown in passport)\n" +
+                    "- dateOfBirth (YYYY-MM-DD)\n" +
+                    "- passportNumber (exact format)\n" +
+                    "- nationality\n" +
+                    "- dateOfIssue (YYYY-MM-DD)\n" +
+                    "- dateOfExpiry (YYYY-MM-DD)\n" +
+                    "- placeOfBirth\n" +
+                    "- issuingAuthority\n" +
+                    "- mrz (machine readable zone) with line1 and line2\n\n" +
+                    "Include confidence_scores (0-1) for each field and overall_confidence."
             },
             {
               type: "image_url",
@@ -33,6 +50,7 @@ export async function extractPassportData(base64Image: string) {
           ],
         }
       ],
+      temperature: 0, // Use deterministic responses for consistency
     });
 
     const content = response.choices[0].message.content;
@@ -40,9 +58,29 @@ export async function extractPassportData(base64Image: string) {
       throw new Error("No content received from OpenAI");
     }
 
-    return JSON.parse(content);
+    try {
+      const parsedData = JSON.parse(content);
+      // Ensure all required fields exist with proper defaults
+      return {
+        ...parsedData,
+        confidence_scores: {
+          fullName: parsedData.confidence_scores?.fullName ?? 0,
+          dateOfBirth: parsedData.confidence_scores?.dateOfBirth ?? 0,
+          passportNumber: parsedData.confidence_scores?.passportNumber ?? 0,
+          nationality: parsedData.confidence_scores?.nationality ?? 0,
+          dateOfIssue: parsedData.confidence_scores?.dateOfIssue ?? 0,
+          dateOfExpiry: parsedData.confidence_scores?.dateOfExpiry ?? 0,
+          placeOfBirth: parsedData.confidence_scores?.placeOfBirth ?? 0,
+          issuingAuthority: parsedData.confidence_scores?.issuingAuthority ?? 0,
+          mrz: parsedData.confidence_scores?.mrz ?? 0
+        },
+        overall_confidence: parsedData.overall_confidence ?? 0,
+        extraction_notes: parsedData.extraction_notes ?? []
+      };
+    } catch (parseError) {
+      throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
+    }
   } catch (error: any) {
-    // Classify and handle different types of errors
     let errorMessage = "Failed to process image";
     let extractionNotes = [];
 
@@ -61,19 +99,17 @@ export async function extractPassportData(base64Image: string) {
     }
 
     return {
-      data: {
-        fullName: "Unknown",
-        dateOfBirth: "",
-        passportNumber: "",
-        nationality: "",
-        dateOfIssue: "",
-        dateOfExpiry: "",
-        placeOfBirth: "",
-        issuingAuthority: "",
-        mrz: {
-          line1: "",
-          line2: ""
-        }
+      fullName: "Unknown",
+      dateOfBirth: "",
+      passportNumber: "",
+      nationality: "",
+      dateOfIssue: "",
+      dateOfExpiry: "",
+      placeOfBirth: "",
+      issuingAuthority: "",
+      mrz: {
+        line1: "",
+        line2: ""
       },
       confidence_scores: {
         fullName: 0,
