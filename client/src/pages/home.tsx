@@ -61,22 +61,27 @@ export default function Home() {
     ].map(header => `"${header}"`).join(",");
 
     // Create CSV rows
-    const rows = passportDataList.map((data) => [
-      data.fullName || "",
-      data.dateOfBirth || "",
-      data.passportNumber || "",
-      data.nationality || "",
-      data.dateOfIssue || "",
-      data.dateOfExpiry || "",
-      data.placeOfBirth || "",
-      data.issuingAuthority || "",
-      data.mrz?.line1 || "",
-      data.mrz?.line2 || "",
-      data.overall_confidence?.toFixed(2) || "0",
-      Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
-      data.isValid ? "Yes" : "No",
-      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
-    ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
+    const rows = passportDataList.map((data) => {
+      const row = [
+        data.fullName || "",
+        data.dateOfBirth || "",
+        data.passportNumber || "",
+        data.nationality || "",
+        data.dateOfIssue || "",
+        data.dateOfExpiry || "",
+        data.placeOfBirth || "",
+        data.issuingAuthority || "",
+        data.mrz?.line1 || "",
+        data.mrz?.line2 || "",
+        data.overall_confidence?.toFixed(2) || "0",
+        Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
+        data.isValid ? "Yes" : "No",
+        Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
+      ];
+
+      // Ensure each value is properly escaped and quoted
+      return row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",");
+    });
 
     // Combine headers and rows
     const csvContent = [headers, ...rows].join("\n");
