@@ -37,7 +37,9 @@ export async function extractPassportData(base64Image: string) {
       throw new Error("No content received from OpenAI");
     }
 
-    return JSON.parse(content);
+    // Clean up the content by removing any markdown code blocks
+    const cleanContent = content.replace(/```json\s*|\s*```/g, '');
+    return JSON.parse(cleanContent);
   } catch (error: any) {
     return {
       data: {
