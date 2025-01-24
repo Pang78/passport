@@ -40,34 +40,34 @@ export default function Home() {
   const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
 
   const exportToCSV = () => {
-    // Create CSV headers
+    // Create CSV headers with quotes
     const headers = [
-      "Full Name",
-      "Date of Birth",
-      "Passport Number",
-      "Nationality",
-      "Date of Issue",
-      "Date of Expiry",
-      "Place of Birth",
-      "Issuing Authority",
-      "MRZ Line 1",
-      "MRZ Line 2",
-      "Confidence Score",
-      "Remarks",
-      "Valid",
-      "Extraction Notes"
+      '"Full Name"',
+      '"Date of Birth"',
+      '"Passport Number"',
+      '"Nationality"',
+      '"Date of Issue"',
+      '"Date of Expiry"',
+      '"Place of Birth"',
+      '"Issuing Authority"',
+      '"MRZ Line 1"',
+      '"MRZ Line 2"',
+      '"Confidence Score"',
+      '"Remarks"',
+      '"Valid"',
+      '"Extraction Notes"'
     ].join(",");
 
     // Create CSV rows
     const rows = passportDataList.map((data) => [
-      data.fullName,
-      data.dateOfBirth,
-      data.passportNumber,
-      data.nationality,
-      data.dateOfIssue,
-      data.dateOfExpiry,
-      data.placeOfBirth,
-      data.issuingAuthority,
+      data.fullName?.value || data.fullName || "",
+      data.dateOfBirth?.value || data.dateOfBirth || "",
+      data.passportNumber?.value || data.passportNumber || "",
+      data.nationality?.value || data.nationality || "",
+      data.dateOfIssue?.value || data.dateOfIssue || "",
+      data.dateOfExpiry?.value || data.dateOfExpiry || "",
+      data.placeOfBirth?.value || data.placeOfBirth || "",
+      data.issuingAuthority?.value || data.issuingAuthority || "",
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
