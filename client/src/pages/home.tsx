@@ -2,16 +2,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import PassportUpload from "@/components/passport-upload";
 import JsonDisplay from "@/components/json-display";
 import { Button } from "@/components/ui/button";
-import { Download, Camera } from "lucide-react";
+import { Download } from "lucide-react";
 import { useState } from "react";
 import { validatePassportData } from "@/lib/validation";
-import { CameraCapture } from "@/components/camera-capture";
-import { processDocument } from "@/lib/document-processor";
-
-interface MRZData {
-  line1: string;
-  line2: string;
-}
 
 export type PassportData = {
   fullName: string;
@@ -22,7 +15,10 @@ export type PassportData = {
   dateOfExpiry: string;
   placeOfBirth: string;
   issuingAuthority: string;
-  mrz?: MRZData;
+  mrz?: {
+    line1: string;
+    line2: string;
+  };
   remarks?: string[];
   isValid?: boolean;
   confidence_scores?: {
@@ -42,9 +38,9 @@ export type PassportData = {
 
 export default function Home() {
   const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
-  const [showCamera, setShowCamera] = useState(false);
 
   const exportToCSV = () => {
+    // Create CSV headers
     const headers = [
       "Full Name",
       "Date of Birth",
@@ -62,6 +58,7 @@ export default function Home() {
       "Extraction Notes"
     ].join(",");
 
+    // Create CSV rows
     const rows = passportDataList.map((data) => [
       data.fullName,
       data.dateOfBirth,
@@ -79,8 +76,10 @@ export default function Home() {
       (data.extraction_notes || []).join("; ")
     ].map(value => `"${value}"`).join(","));
 
+    // Combine headers and rows
     const csvContent = [headers, ...rows].join("\n");
 
+    // Create and download the file
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -91,6 +90,7 @@ export default function Home() {
   };
 
   const handleDataExtracted = (data: PassportData[]) => {
+    // Validate each passport data and add remarks
     const validatedData = data.map(passport => {
       const { isValid, remarks } = validatePassportData(passport);
       return {
@@ -99,8 +99,8 @@ export default function Home() {
         remarks: [
           ...(remarks || []),
           ...(passport.extraction_notes || []),
-          ...(passport.overall_confidence !== undefined && passport.overall_confidence < 0.5
-            ? [`Low confidence extraction (${(passport.overall_confidence * 100).toFixed(1)}%)`]
+          ...(passport.overall_confidence !== undefined && passport.overall_confidence < 0.5 
+            ? [`Low confidence extraction (${(passport.overall_confidence * 100).toFixed(1)}%)`] 
             : [])
         ],
       };
@@ -108,31 +108,9 @@ export default function Home() {
     setPassportDataList(validatedData);
   };
 
-  const handleCameraCapture = async (imageData: string) => {
-    try {
-      const result = await processDocument(imageData);
-      const passportData: PassportData = {
-        fullName: result.fields.fullName || "",
-        dateOfBirth: result.fields.dateOfBirth || "",
-        passportNumber: result.fields.passportNumber || "",
-        nationality: result.fields.nationality || "",
-        dateOfIssue: result.fields.dateOfIssue || "",
-        dateOfExpiry: result.fields.dateOfExpiry || "",
-        placeOfBirth: result.fields.placeOfBirth || "",
-        issuingAuthority: result.fields.issuingAuthority || "",
-        mrz: typeof result.fields.mrz === 'object' ? result.fields.mrz as MRZData : undefined,
-        overall_confidence: result.confidence,
-        extraction_notes: [`Document type detected: ${result.type}`],
-      };
-      handleDataExtracted([passportData]);
-      setShowCamera(false);
-    } catch (error) {
-      console.error("Error processing captured image:", error);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-gray-50">
+      {/* Header */}
       <header className="bg-primary/95 text-primary-foreground shadow-md backdrop-blur-sm sticky top-0 z-10">
         <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
@@ -144,56 +122,43 @@ export default function Home() {
               />
               <div className="h-6 w-px bg-primary-foreground/20" />
               <h1 className="text-base sm:text-xl font-bold tracking-tight">
-                Document Data Extractor
+                Passport Data Extractor
               </h1>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="w-full max-w-7xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
         <div className="space-y-8">
+          {/* Upload Section */}
           <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-6 sm:p-8">
               <div className="max-w-3xl mx-auto">
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mb-2 sm:mb-3">
-                  Extract Document Data
+                  Extract Passport Data
                 </h2>
                 <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed">
-                  Upload or capture documents to automatically extract and structure their data using advanced AI technology.
-                  Supports various document types including passports, IDs, and documents with QR codes or barcodes.
+                  Upload passport images to automatically extract and structure their data using advanced AI technology. 
+                  The system supports batch processing for multiple passports with secure data handling.
                 </p>
-
-                <div className="flex justify-end mb-4">
-                  <Button
-                    onClick={() => setShowCamera(!showCamera)}
-                    variant="outline"
-                    className="gap-2"
-                  >
-                    <Camera className="w-4 h-4" />
-                    {showCamera ? "Switch to Upload" : "Use Camera"}
-                  </Button>
-                </div>
-
-                {showCamera ? (
-                  <CameraCapture onCapture={handleCameraCapture} className="mb-4" />
-                ) : (
-                  <PassportUpload onDataExtracted={handleDataExtracted} />
-                )}
+                <PassportUpload onDataExtracted={handleDataExtracted} />
               </div>
             </CardContent>
           </Card>
 
+          {/* Results Section */}
           {passportDataList.length > 0 && (
             <Card className="border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardContent className="p-4 sm:p-8">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
                   <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                    Extracted Data ({passportDataList.length} document{passportDataList.length !== 1 ? "s" : ""})
+                    Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
                   </h2>
-                  <Button
-                    onClick={exportToCSV}
-                    variant="outline"
+                  <Button 
+                    onClick={exportToCSV} 
+                    variant="outline" 
                     className="w-full sm:w-auto gap-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300"
                   >
                     <Download className="w-4 h-4" />
@@ -202,18 +167,18 @@ export default function Home() {
                 </div>
                 <div className="space-y-10">
                   {passportDataList.map((data, index) => (
-                    <div
-                      key={index}
+                    <div 
+                      key={index} 
                       className="border-t pt-8 first:border-t-0 first:pt-0"
                     >
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Document {index + 1}
+                        Passport {index + 1}
                       </h3>
                       {data.overall_confidence !== undefined && (
                         <p className={`text-sm mb-4 ${
-                          data.overall_confidence < 0.5 ? 'text-red-600' :
-                            data.overall_confidence < 0.8 ? 'text-yellow-600' :
-                              'text-green-600'
+                          data.overall_confidence < 0.5 ? 'text-red-600' : 
+                          data.overall_confidence < 0.8 ? 'text-yellow-600' : 
+                          'text-green-600'
                         }`}>
                           Extraction Confidence: {(data.overall_confidence * 100).toFixed(1)}%
                         </p>
