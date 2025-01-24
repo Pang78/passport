@@ -188,11 +188,21 @@ export default function Home() {
                     <TableBody>
                       {passportDataList.map((data, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{data.fullName}</TableCell>
-                          <TableCell>{data.passportNumber}</TableCell>
-                          <TableCell>{data.nationality}</TableCell>
-                          <TableCell>{data.dateOfBirth}</TableCell>
-                          <TableCell>{data.dateOfExpiry}</TableCell>
+                          <TableCell className="font-medium">
+                            {typeof data.fullName === 'object' ? data.fullName.value : data.fullName}
+                          </TableCell>
+                          <TableCell>
+                            {typeof data.passportNumber === 'object' ? data.passportNumber.value : data.passportNumber}
+                          </TableCell>
+                          <TableCell>
+                            {typeof data.nationality === 'object' ? data.nationality.value : data.nationality}
+                          </TableCell>
+                          <TableCell>
+                            {typeof data.dateOfBirth === 'object' ? data.dateOfBirth.value : data.dateOfBirth}
+                          </TableCell>
+                          <TableCell>
+                            {typeof data.dateOfExpiry === 'object' ? data.dateOfExpiry.value : data.dateOfExpiry}
+                          </TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                               data.isValid 
