@@ -42,9 +42,10 @@ export async function extractPassportData(base64Image: string) {
 
     // Calculate overall confidence
     const scores = Object.values(confidenceScores) as number[];
-    const overall = scores.length > 0 
-      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
-      : 0;
+    const validScores = scores.filter(score => !isNaN(score) && score !== null);
+    const overall = validScores.length > 0 
+      ? validScores.reduce((sum, score) => sum + score, 0) / validScores.length
+      : 0.8; // Default to 0.8 if no valid confidence scores are present
 
     return {
       ...parsedContent,
