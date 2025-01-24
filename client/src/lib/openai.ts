@@ -22,7 +22,7 @@ export async function extractPassportData(base64Image: string) {
               text: "Extract passport data from this image and respond with a JSON object containing: fullName, dateOfBirth (YYYY-MM-DD), passportNumber, nationality, dateOfIssue (YYYY-MM-DD), dateOfExpiry (YYYY-MM-DD), placeOfBirth, issuingAuthority, and MRZ lines. Include confidence scores between 0 and 1 for each field."
             },
             {
-              type: "image",
+              type: "image_url",
               image_url: {
                 url: `data:image/jpeg;base64,${base64Image}`
               }
