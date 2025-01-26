@@ -73,20 +73,26 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
     },
   });
 
+  const [analyzingProgress, setAnalyzingProgress] = useState(0);
+
   const analyzeFiles = async (files: File[]) => {
     const analyzedFiles: PreviewFile[] = [];
+    setAnalyzingProgress(0);
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const [preview, quality] = await Promise.all([
         getImageDataUrl(file),
         checkImageQuality(file),
       ]);
 
       analyzedFiles.push(Object.assign(file, { preview, quality }));
+      setAnalyzingProgress(((i + 1) / files.length) * 100);
     }
 
     setSelectedFiles(analyzedFiles);
     setPreviewDialogOpen(true);
+    setAnalyzingProgress(0);
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -194,6 +200,15 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
             Select Files
           </Button>
         </div>
+
+        {analyzingProgress > 0 && (
+          <div className="mt-4 space-y-2">
+            <Progress value={analyzingProgress} className="w-full" />
+            <p className="text-sm text-gray-500">
+              Analyzing images... {Math.round(analyzingProgress)}%
+            </p>
+          </div>
+        )}
 
         {extractData.isPending && (
           <div className="mt-4 space-y-2">
