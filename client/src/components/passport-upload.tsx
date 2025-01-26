@@ -43,7 +43,12 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       return results;
     },
     onSuccess: (data) => {
-      console.log('File upload processed:', data);
+      // Keep track of all processed data in console
+      console.group('File Upload Processing');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('New Data:', data);
+      console.groupEnd();
+      
       onDataExtracted(data);
       toast({
         title: "Success",
