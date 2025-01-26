@@ -206,12 +206,12 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       </div>
 
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Preview Selected Images</DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 overflow-y-auto flex-1 pr-2">
             {selectedFiles.map((file, index) => (
               <div key={index} className="relative">
                 <div className="aspect-[3/4] relative rounded-lg overflow-hidden border border-gray-200">
