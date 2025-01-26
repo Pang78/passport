@@ -50,7 +50,7 @@ export default function Home() {
 
   const exportToCSV = () => {
     const headers = [
-      "Full Name", "Date of Birth", "Passport Number", "Nationality",
+      "Full Name", "Date of Birth", "Passport Number", "ID Number", "Nationality",
       "Date of Issue", "Date of Expiry", "Place of Birth", "Issuing Authority",
       "MRZ Line 1", "MRZ Line 2", "Overall Confidence", "Remarks", "Valid",
       "Extraction Notes"
@@ -60,6 +60,7 @@ export default function Home() {
       typeof data.fullName === 'object' ? data.fullName.value : data.fullName || "",
       typeof data.dateOfBirth === 'object' ? data.dateOfBirth.value : data.dateOfBirth || "",
       typeof data.passportNumber === 'object' ? data.passportNumber.value : data.passportNumber || "",
+      typeof data.idNumber === 'object' ? data.idNumber.value : data.idNumber || "",
       typeof data.nationality === 'object' ? data.nationality.value : data.nationality || "",
       typeof data.dateOfIssue === 'object' ? data.dateOfIssue.value : data.dateOfIssue || "",
       typeof data.dateOfExpiry === 'object' ? data.dateOfExpiry.value : data.dateOfExpiry || "",
