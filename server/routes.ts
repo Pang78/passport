@@ -2,12 +2,25 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { extractPassportData } from "../client/src/lib/openai";
+import sharp from "sharp";
+import { OpenAI } from "openai";
+
+const openai = new OpenAI();
 
 const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
 });
+
+async function preprocessImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .rotate() // Auto-rotate based on EXIF
+    .normalize() // Enhance contrast
+    .modulate({ brightness: 1.1 }) // Slightly increase brightness
+    .sharpen() // Enhance sharpness
+    .toBuffer();
+}
 
 export function registerRoutes(app: Express): Server {
   app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
@@ -20,13 +33,16 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("Uploaded file must be an image");
       }
 
-      const base64Image = req.file.buffer.toString("base64");
+      // Preprocess the image
+      const processedBuffer = await preprocessImage(req.file.buffer);
+      const base64Image = processedBuffer.toString("base64");
       const passportData = await extractPassportData(base64Image);
-      
+
       res.json(passportData);
     } catch (error: any) {
       res.status(500).send(error.message);
     }
+  });
 
   app.post("/api/check-quality", upload.single("image"), async (req, res) => {
     try {
@@ -35,9 +51,9 @@ export function registerRoutes(app: Express): Server {
       }
 
       const base64Image = req.file.buffer.toString("base64");
-      
+
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4-vision-preview",
         messages: [
           {
             role: "system",
@@ -72,8 +88,6 @@ export function registerRoutes(app: Express): Server {
     } catch (error: any) {
       res.status(500).send(error.message);
     }
-  });
-
   });
 
   const httpServer = createServer(app);
