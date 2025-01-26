@@ -116,7 +116,12 @@ export default function Home() {
         ],
       };
     });
-    setPassportDataList(validatedData);
+    setPassportDataList(prev => [...prev, ...validatedData]);
+    console.group('Upload History');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Uploaded Files:', validatedData);
+    console.log('Total Records:', passportDataList.length + validatedData.length);
+    console.groupEnd();
   };
 
   return (
