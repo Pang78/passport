@@ -218,6 +218,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       }
 
       const data = await response.json();
+      console.log('Camera capture processed:', data);
       onImageCaptured([data]);
 
       toast({

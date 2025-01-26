@@ -46,7 +46,24 @@ export type PassportData = {
 };
 
 export default function Home() {
-  const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
+  const [passportDataList, setPassportDataList] = useState<PassportData[]>(() => {
+    const saved = localStorage.getItem('passportData');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    localStorage.setItem('passportData', JSON.stringify(passportDataList));
+    console.log('Passport data updated:', passportDataList);
+  }, [passportDataList]);
+
+  const deleteEntry = (index: number) => {
+    setPassportDataList(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearAllData = () => {
+    setPassportDataList([]);
+  };
 
   const exportToCSV = () => {
     const headers = [
@@ -170,6 +187,13 @@ export default function Home() {
                     <Download className="w-4 h-4" />
                     Export CSV
                   </Button>
+                  <Button 
+                    onClick={clearAllData}
+                    variant="destructive"
+                    className="ml-2"
+                  >
+                    Clear All
+                  </Button>
                 </div>
 
                 <div className="rounded-md border">
@@ -224,6 +248,16 @@ export default function Home() {
                                 ? `${(data.overall_confidence * 100).toFixed(1)}%` 
                                 : 'N/A'}
                             </span>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => deleteEntry(index)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              Delete
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

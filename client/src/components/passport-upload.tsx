@@ -43,6 +43,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       return results;
     },
     onSuccess: (data) => {
+      console.log('File upload processed:', data);
       onDataExtracted(data);
       toast({
         title: "Success",
