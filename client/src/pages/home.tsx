@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Download, Upload, Camera } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { validatePassportData } from "@/lib/validation";
 
 export type PassportData = {
