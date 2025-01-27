@@ -198,6 +198,7 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
   };
 
   const [qualityScore, setQualityScore] = useState<number>(0);
+  const [isAutoCapturing, setIsAutoCapturing] = useState(true);
 
   const startAutoCapture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
