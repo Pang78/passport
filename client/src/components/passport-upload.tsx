@@ -88,11 +88,11 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
   const [analyzingProgress, setAnalyzingProgress] = useState(0);
 
   const analyzeFiles = async (files: File[]) => {
-    setAnalyzingProgress(0);
     const processedFiles = Array.from(files);
     setSelectedFiles(processedFiles);
-    startProcessing();
-    setAnalyzingProgress(0);
+    if (processedFiles.length > 0) {
+      extractData.mutate(processedFiles);
+    }
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -220,49 +220,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         )}
       </div>
 
-      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Preview Selected Images</DialogTitle>
-          </DialogHeader>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 overflow-y-auto flex-1 pr-2">
-            {selectedFiles.map((file, index) => (
-              <div key={index} className="relative">
-                <div className="aspect-[3/4] relative rounded-lg overflow-hidden border border-gray-200">
-                  <img
-                    src={file.preview}
-                    alt={`Preview ${index + 1}`}
-                    className="object-cover w-full h-full"
-                  />
-                  <button
-                    onClick={() => removeFile(index)}
-                    className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white/90 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-
-                  {!file.quality?.isValid && (
-                    <div className="absolute bottom-2 right-2 px-2 py-1 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      {file.quality?.message || 'Quality issues detected'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-end gap-4 mt-4">
-            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={startProcessing} disabled={selectedFiles.length === 0}>
-              Process {selectedFiles.length} image{selectedFiles.length !== 1 ? 's' : ''}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      
     </>
   );
 }
