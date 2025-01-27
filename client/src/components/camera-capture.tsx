@@ -19,8 +19,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   const [isCropping, setIsCropping] = useState(false);
   const [cropStart, setCropStart] = useState<{ x: number; y: number } | null>(null);
   const [cropEnd, setCropEnd] = useState<{ x: number; y: number } | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [qualityIndicator, setQualityIndicator] = useState<'red' | 'yellow' | 'green'>('red');
+  const [isProcessing, setIsProcessing] = useState(false); // Added loading state
   const { toast } = useToast();
 
   const initializeCamera = useCallback(async () => {
@@ -132,7 +131,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     }
   };
 
-  const checkImageQuality = async (canvas: HTMLCanvasElement): Promise<{ isValid: boolean; message?: string; quality?: 'red' | 'yellow' | 'green' }> => {
+  const checkImageQuality = async (canvas: HTMLCanvasElement): Promise<{ isValid: boolean; message?: string }> => {
     try {
       const base64Image = canvas.toDataURL('image/jpeg', 0.95);
       const formData = new FormData();
@@ -151,8 +150,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       const result = await response.json();
       return {
         isValid: result.isValid,
-        message: result.message,
-        quality: result.quality // Assuming API returns quality level
+        message: result.message
       };
     } catch (error) {
       console.error('Quality check error:', error);
@@ -162,9 +160,8 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
     const qualityCheck = await checkImageQuality(canvas);
-    setQualityIndicator(qualityCheck.quality || 'red'); // Update indicator based on quality
     if (qualityCheck.isValid) {
       try {
         const base64Image = canvas.toDataURL('image/jpeg', 0.95);
@@ -213,7 +210,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
-
+        
         const success = await analyzeFrame(context, canvas);
         if (!success) {
           requestAnimationFrame(processFrame);
@@ -264,10 +261,9 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         description: qualityCheck.message,
         variant: "destructive",
       });
-      setIsProcessing(false);
+      setIsProcessing(false); // Set loading state to false
       return;
     }
-    setQualityIndicator(qualityCheck.quality || 'red'); // Update indicator based on quality
 
     try {
       const base64Image = canvas.toDataURL('image/jpeg', 0.95);
@@ -293,14 +289,14 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         title: "Success",
         description: "Image captured and processed successfully",
       });
-      setIsProcessing(false);
+      setIsProcessing(false); // Set loading state to false
     } catch (error: any) {
       toast({
         title: "Processing Error",
         description: error.message,
         variant: "destructive",
       });
-      setIsProcessing(false);
+      setIsProcessing(false); // Set loading state to false
     }
   };
 
@@ -360,117 +356,112 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       });
     } finally {
       setIsProcessing(false);
-      // Redirect to camera page after processing
-      window.location.reload();
     }
   };
 
   return (
     <>
       <div className="relative border rounded-lg p-4">
-        <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-cover"
-          />
-          <canvas ref={canvasRef} className="hidden" />
+      <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="w-full h-full object-cover"
+        />
+        <canvas ref={canvasRef} className="hidden" />
 
-          {isCropping && (
-            <div
-              className="absolute inset-0 cursor-crosshair"
-              onMouseDown={e => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setCropStart({
-                  x: e.clientX - rect.left,
-                  y: e.clientY - rect.top
-                });
-              }}
-              onMouseMove={e => {
-                if (!cropStart) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                setCropEnd({
-                  x: e.clientX - rect.left,
-                  y: e.clientY - rect.top
-                });
-              }}
-              onMouseUp={() => {
-                if (cropStart && cropEnd) {
-                  setIsCropping(false);
-                }
-                setCropStart(null);
-                setCropEnd(null);
-              }}
-            >
-              {cropStart && cropEnd && (
-                <div
-                  className="absolute border-2 border-primary bg-primary/20"
-                  style={{
-                    left: Math.min(cropStart.x, cropEnd.x),
-                    top: Math.min(cropStart.y, cropEnd.y),
-                    width: Math.abs(cropEnd.x - cropStart.x),
-                    height: Math.abs(cropEnd.y - cropStart.y),
-                  }}
-                />
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleFlash}
-              className={flashEnabled ? "bg-yellow-100" : ""}
-            >
-              <Lightbulb className={`h-4 w-4 ${flashEnabled ? "text-yellow-500" : ""}`} />
-            </Button>
-
-            {devices.length > 1 && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={switchCamera}
-                disabled={isProcessing}
-              >
-                <RotateCw className="h-4 w-4" />
-              </Button>
+        {isCropping && (
+          <div
+            className="absolute inset-0 cursor-crosshair"
+            onMouseDown={e => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setCropStart({
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+              });
+            }}
+            onMouseMove={e => {
+              if (!cropStart) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              setCropEnd({
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+              });
+            }}
+            onMouseUp={() => {
+              if (cropStart && cropEnd) {
+                setIsCropping(false);
+              }
+              setCropStart(null);
+              setCropEnd(null);
+            }}
+          >
+            {cropStart && cropEnd && (
+              <div
+                className="absolute border-2 border-primary bg-primary/20"
+                style={{
+                  left: Math.min(cropStart.x, cropEnd.x),
+                  top: Math.min(cropStart.y, cropEnd.y),
+                  width: Math.abs(cropEnd.x - cropStart.x),
+                  height: Math.abs(cropEnd.y - cropStart.y),
+                }}
+              />
             )}
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setIsCropping(!isCropping)}
-              disabled={isProcessing}
-              className={isCropping ? "bg-primary/10" : ""}
-            >
-              {isCropping ? (
-                <Maximize2 className="h-4 w-4" />
-              ) : (
-                <CropIcon className="h-4 w-4" />
-              )}
-            </Button>
           </div>
-
-          <div className="flex gap-2">
-            <Button onClick={captureImage} disabled={isProcessing} className="gap-2">
-              <Camera className="h-4 w-4" />
-              {isProcessing ? "Processing..." : "Capture"}
-            </Button>
-            <Button onClick={startAutoCapture} disabled={isProcessing} variant="secondary" className="gap-2">
-              <Camera className="h-4 w-4" />
-              Auto Capture
-            </Button>
-          </div>
-        </div>
-        <div>
-          <p>Quality: {qualityIndicator}</p> {/* Added quality indicator */}
-        </div>
+        )}
       </div>
 
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleFlash}
+            className={flashEnabled ? "bg-yellow-100" : ""}
+          >
+            <Lightbulb className={`h-4 w-4 ${flashEnabled ? "text-yellow-500" : ""}`} />
+          </Button>
+
+          {devices.length > 1 && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={switchCamera}
+              disabled={isProcessing} // Disable button during processing
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsCropping(!isCropping)}
+            disabled={isProcessing} // Disable button during processing
+            className={isCropping ? "bg-primary/10" : ""}
+          >
+            {isCropping ? (
+              <Maximize2 className="h-4 w-4" />
+            ) : (
+              <CropIcon className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        <div className="flex gap-2">
+          <Button onClick={captureImage} disabled={isProcessing} className="gap-2">
+            <Camera className="h-4 w-4" />
+            {isProcessing ? "Processing..." : "Capture"}
+          </Button>
+          <Button onClick={startAutoCapture} disabled={isProcessing} variant="secondary" className="gap-2">
+            <Camera className="h-4 w-4" />
+            Auto Capture
+          </Button>
+        </div>
+      </div>
+      </div>
+      
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
