@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, RotateCw, Lightbulb, CropIcon, Maximize2 } from "lucide-react";
+import { Camera, RotateCw, Lightbulb, CropIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { PassportData } from "@/pages/home";
 
@@ -16,10 +16,11 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [activeDeviceId, setActiveDeviceId] = useState<string>("");
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
   const [cropStart, setCropStart] = useState<{ x: number; y: number } | null>(null);
   const [cropEnd, setCropEnd] = useState<{ x: number; y: number } | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false); // Added loading state
   const { toast } = useToast();
 
   const initializeCamera = useCallback(async () => {
@@ -98,18 +99,15 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       const capabilities = track.getCapabilities();
       const settings = track.getSettings();
 
-      // Some devices expose torch through a custom implementation
       const hasFlash = 'torch' in capabilities || 'fillLightMode' in capabilities;
 
       if (hasFlash) {
         try {
-          // Try standard torch control
           await track.applyConstraints({
             advanced: [{ torch: !flashEnabled }]
           });
           setFlashEnabled(!flashEnabled);
         } catch {
-          // Fallback to fillLightMode if available
           await track.applyConstraints({
             advanced: [{ fillLightMode: flashEnabled ? "none" : "flash" }]
           });
@@ -154,229 +152,55 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       };
     } catch (error) {
       console.error('Quality check error:', error);
-      return { isValid: true }; // Fallback to accepting the image if API fails
+      return { isValid: true };
     }
   };
 
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
-    const qualityCheck = await checkImageQuality(canvas);
-    if (qualityCheck.isValid) {
-      try {
-        const base64Image = canvas.toDataURL('image/jpeg', 0.95);
-        const formData = new FormData();
-        const blob = await (await fetch(base64Image)).blob();
-        formData.append('image', blob, 'passport.jpg');
-
-        const response = await fetch('/api/extract-passport', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-
-        const data = await response.json();
-        if (data.overall_confidence > 0.7) {
-          onImageCaptured([data]);
-          toast({
-            title: "Success",
-            description: "Passport data extracted successfully",
-          });
-          if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-          }
-          return true;
-        }
-      } catch (error) {
-        console.error('Processing error:', error);
-      }
-    }
-    return false;
-  };
-
-  const [qualityScore, setQualityScore] = useState<number>(0);
-  const [isAutoCapturing, setIsAutoCapturing] = useState(true);
-
-  const startAutoCapture = async () => {
+  const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current) return;
-    setIsAutoCapturing(true);
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    let lastApiCall = 0;
-    const API_CALL_DELAY = 2000; // Minimum 2 seconds between API calls
-    let frameCount = 0;
-    let motionScore = 0;
-    let lastImageData: ImageData | null = null;
-
-    const analyzeMotion = (imageData1: ImageData, imageData2: ImageData) => {
-      const data1 = imageData1.data;
-      const data2 = imageData2.data;
-      let diff = 0;
-      for (let i = 0; i < data1.length; i += 4) {
-        diff += Math.abs(data1[i] - data2[i]);
-      }
-      return diff / (data1.length / 4);
-    };
-
-    const processFrame = async () => {
-      if (!isAutoCapturing || video.paused || video.ended) {
-        setIsAutoCapturing(false);
-        return;
-      }
+    try {
+      setIsProcessing(true);
 
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0);
-      
-      const currentImageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      
-      if (lastImageData) {
-        motionScore = analyzeMotion(currentImageData, lastImageData);
-        setQualityScore(Math.min(100, (100 - motionScore) * 1.2));
-      }
-      
-      lastImageData = currentImageData;
-      frameCount++;
 
-      const now = Date.now();
-      if (now - lastApiCall >= API_CALL_DELAY && motionScore < 20 && frameCount > 10) {
-        lastApiCall = now;
-        const qualityCheck = await checkImageQuality(canvas);
-        
-        if (qualityCheck.isValid) {
-          const success = await analyzeFrame(context, canvas);
-          if (success) {
-            setIsAutoCapturing(false);
-            return;
-          }
-        }
-      }
+      const previewDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      setPreviewImage(previewDataUrl);
 
-      requestAnimationFrame(processFrame);
-    };
-
-    requestAnimationFrame(processFrame);
-
-    // Cleanup function
-    return () => {
-      clearInterval(captureInterval);
-      setIsAutoCapturing(false);
-    };
-  };
-
-  const captureImage = async () => {
-    if (!videoRef.current || !canvasRef.current) {
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-    if (!context) {
-      return;
-    }
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    context.drawImage(video, 0, 0);
-
-    if (isCropping && cropStart && cropEnd) {
-      const cropWidth = Math.abs(cropEnd.x - cropStart.x);
-      const cropHeight = Math.abs(cropEnd.y - cropStart.y);
-      const cropX = Math.min(cropStart.x, cropEnd.x);
-      const cropY = Math.min(cropStart.y, cropEnd.y);
-
-      const croppedImageData = context.getImageData(cropX, cropY, cropWidth, cropHeight);
-      canvas.width = cropWidth;
-      canvas.height = cropHeight;
-      context.putImageData(croppedImageData, 0, 0);
-    }
-
-    const previewDataUrl = canvas.toDataURL('image/jpeg', 0.95);
-    setPreviewImage(previewDataUrl);
-
-    const qualityCheck = await checkImageQuality(canvas);
-
-    if (!qualityCheck.isValid) {
-      toast({
-        title: "Quality Check Failed",
-        description: qualityCheck.message,
-        variant: "destructive",
-      });
-      setIsProcessing(false); // Set loading state to false
-      return;
-    }
-
-    try {
-      const base64Image = canvas.toDataURL('image/jpeg', 0.95);
-
-      const formData = new FormData();
-      const blob = await (await fetch(base64Image)).blob();
-      formData.append('image', blob, 'passport.jpg');
-
-      const response = await fetch('/api/extract-passport', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      const data = await response.json();
-      console.log('Camera capture processed:', data);
-      onImageCaptured([data]);
-
-      toast({
-        title: "Success",
-        description: "Image captured and processed successfully",
-      });
-      setIsProcessing(false); // Set loading state to false
     } catch (error: any) {
       toast({
-        title: "Processing Error",
+        title: "Capture Error",
         description: error.message,
         variant: "destructive",
       });
-      setIsProcessing(false); // Set loading state to false
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  useEffect(() => {
-    initializeCamera().then(() => {
-      startAutoCapture();
-    });
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [initializeCamera]);
-
   const processImage = async () => {
-    setIsProcessing(true);
     if (!previewImage) return;
-
-    const qualityCheck = await checkImageQuality(canvasRef.current!);
-
-    if (!qualityCheck.isValid) {
-      toast({
-        title: "Quality Check Failed",
-        description: qualityCheck.message,
-        variant: "destructive",
-      });
-      setIsProcessing(false);
-      return;
-    }
+    setIsProcessing(true);
 
     try {
+      const qualityCheck = await checkImageQuality(canvasRef.current!);
+
+      if (!qualityCheck.isValid) {
+        toast({
+          title: "Quality Check Failed",
+          description: qualityCheck.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const formData = new FormData();
       const blob = await (await fetch(previewImage)).blob();
       formData.append('image', blob, 'passport.jpg');
@@ -391,14 +215,14 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
       }
 
       const data = await response.json();
-      console.log('Camera capture processed:', data);
       onImageCaptured([data]);
+      setPreviewImage(null);
 
       toast({
         title: "Success",
         description: "Image captured and processed successfully",
       });
-      setPreviewImage(null);
+
     } catch (error: any) {
       toast({
         title: "Processing Error",
@@ -410,144 +234,85 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
     }
   };
 
+  useEffect(() => {
+    initializeCamera();
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [initializeCamera]);
+
   return (
     <>
       <div className="relative border rounded-lg p-4">
-      <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
-        <canvas ref={canvasRef} className="hidden" />
-        
-        {/* Passport Guide Overlay */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="relative h-full">
-            <div className="absolute inset-[15%] border-2 border-primary/50 rounded-lg">
-              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-primary/75 text-white px-3 py-1 rounded-full text-sm">
-                Align passport within frame
+        <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+          <canvas ref={canvasRef} className="hidden" />
+
+          {/* Passport Guide Overlay */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="relative h-full">
+              <div className="absolute inset-[15%] border-2 border-primary/50 rounded-lg">
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-primary/75 text-white px-3 py-1 rounded-full text-sm">
+                  Align passport within frame
+                </div>
+                <div className="absolute top-0 left-0 w-[20px] h-[20px] border-t-2 border-l-2 border-primary"></div>
+                <div className="absolute top-0 right-0 w-[20px] h-[20px] border-t-2 border-r-2 border-primary"></div>
+                <div className="absolute bottom-0 left-0 w-[20px] h-[20px] border-b-2 border-l-2 border-primary"></div>
+                <div className="absolute bottom-0 right-0 w-[20px] h-[20px] border-b-2 border-r-2 border-primary"></div>
               </div>
-              <div className="absolute top-0 left-0 w-[20px] h-[20px] border-t-2 border-l-2 border-primary"></div>
-              <div className="absolute top-0 right-0 w-[20px] h-[20px] border-t-2 border-r-2 border-primary"></div>
-              <div className="absolute bottom-0 left-0 w-[20px] h-[20px] border-b-2 border-l-2 border-primary"></div>
-              <div className="absolute bottom-0 right-0 w-[20px] h-[20px] border-b-2 border-r-2 border-primary"></div>
             </div>
           </div>
+
+          {/* Capture Button */}
+          <button
+            onClick={captureImage}
+            disabled={isProcessing}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Camera className="h-8 w-8" />
+          </button>
         </div>
 
-        {/* Focus/Quality Indicator */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/75 text-white px-4 py-2 rounded-full text-sm flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-yellow-500' : 'bg-green-500'} animate-pulse`}></div>
-          {isProcessing ? 'Processing...' : 'Ready to capture'}
-        </div>
-
-        {isCropping && (
-          <div
-            className="absolute inset-0 cursor-crosshair"
-            onMouseDown={e => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setCropStart({
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-              });
-            }}
-            onMouseMove={e => {
-              if (!cropStart) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              setCropEnd({
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-              });
-            }}
-            onMouseUp={() => {
-              if (cropStart && cropEnd) {
-                setIsCropping(false);
-              }
-              setCropStart(null);
-              setCropEnd(null);
-            }}
-          >
-            {cropStart && cropEnd && (
-              <div
-                className="absolute border-2 border-primary bg-primary/20"
-                style={{
-                  left: Math.min(cropStart.x, cropEnd.x),
-                  top: Math.min(cropStart.y, cropEnd.y),
-                  width: Math.abs(cropEnd.x - cropStart.x),
-                  height: Math.abs(cropEnd.y - cropStart.y),
-                }}
-              />
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleFlash}
-            className={flashEnabled ? "bg-yellow-100" : ""}
-          >
-            <Lightbulb className={`h-4 w-4 ${flashEnabled ? "text-yellow-500" : ""}`} />
-          </Button>
-
-          {devices.length > 1 && (
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
-              onClick={switchCamera}
-              disabled={isProcessing} // Disable button during processing
+              onClick={toggleFlash}
+              className={flashEnabled ? "bg-yellow-100" : ""}
             >
-              <RotateCw className="h-4 w-4" />
+              <Lightbulb className={`h-4 w-4 ${flashEnabled ? "text-yellow-500" : ""}`} />
             </Button>
-          )}
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsCropping(!isCropping)}
-            disabled={isProcessing} // Disable button during processing
-            className={isCropping ? "bg-primary/10" : ""}
-          >
-            {isCropping ? (
-              <Maximize2 className="h-4 w-4" />
-            ) : (
-              <CropIcon className="h-4 w-4" />
+            {devices.length > 1 && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={switchCamera}
+                disabled={isProcessing}
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
             )}
-          </Button>
-        </div>
-
-        <div className="flex gap-2">
-          <div className="flex items-center gap-2">
-            <div className={`h-4 w-4 ${isProcessing ? 'animate-spin' : 'animate-pulse'}`}>•</div>
-            <span className="text-sm">{isProcessing ? "Analyzing..." : "Auto-capturing"}</span>
           </div>
-          {(
-            <div className="fixed bottom-4 right-4 bg-black/75 text-white p-4 rounded-lg space-y-2">
-              <div className="text-sm">Quality Score</div>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-24 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-300" 
-                    style={{ width: `${qualityScore}%` }}
-                  />
-                </div>
-                <span className="text-sm">{Math.round(qualityScore)}%</span>
-              </div>
-            </div>
-          )}
+
+          <div className="text-sm text-gray-500">
+            {isProcessing ? "Processing..." : "Ready to capture"}
+          </div>
         </div>
       </div>
-      </div>
-      
+
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Preview Captured Image</DialogTitle>
+            <DialogTitle>Review Captured Image</DialogTitle>
           </DialogHeader>
           {previewImage && (
             <div className="space-y-4">
@@ -563,7 +328,7 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
                   Retake
                 </Button>
                 <Button onClick={processImage} disabled={isProcessing}>
-                  {isProcessing ? "Processing..." : "Process Image"}
+                  {isProcessing ? "Processing..." : "Confirm"}
                 </Button>
               </div>
             </div>
