@@ -396,20 +396,20 @@ const captureImage = async () => {
       </div>
       
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Preview Captured Image</DialogTitle>
           </DialogHeader>
           {previewImage && (
             <div className="space-y-4">
-              <div className="aspect-[3/4] relative rounded-lg overflow-hidden border">
+              <div className="max-h-[60vh] relative rounded-lg overflow-hidden border">
                 <img
                   src={previewImage}
                   alt="Captured preview"
                   className="object-contain w-full h-full"
                 />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 sticky bottom-0 bg-background pt-2">
                 <Button variant="outline" onClick={() => setPreviewImage(null)}>
                   Retake
                 </Button>
