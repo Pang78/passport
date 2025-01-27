@@ -370,6 +370,27 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
           className="w-full h-full object-cover"
         />
         <canvas ref={canvasRef} className="hidden" />
+        
+        {/* Passport Guide Overlay */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="relative h-full">
+            <div className="absolute inset-[15%] border-2 border-primary/50 rounded-lg">
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-primary/75 text-white px-3 py-1 rounded-full text-sm">
+                Align passport within frame
+              </div>
+              <div className="absolute top-0 left-0 w-[20px] h-[20px] border-t-2 border-l-2 border-primary"></div>
+              <div className="absolute top-0 right-0 w-[20px] h-[20px] border-t-2 border-r-2 border-primary"></div>
+              <div className="absolute bottom-0 left-0 w-[20px] h-[20px] border-b-2 border-l-2 border-primary"></div>
+              <div className="absolute bottom-0 right-0 w-[20px] h-[20px] border-b-2 border-r-2 border-primary"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Focus/Quality Indicator */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/75 text-white px-4 py-2 rounded-full text-sm flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-yellow-500' : 'bg-green-500'} animate-pulse`}></div>
+          {isProcessing ? 'Processing...' : 'Ready to capture'}
+        </div>
 
         {isCropping && (
           <div
@@ -450,9 +471,13 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={captureImage} disabled={isProcessing} className="gap-2">
-            <Camera className="h-4 w-4" />
-            {isProcessing ? "Processing..." : "Capture"}
+          <Button 
+            onClick={captureImage} 
+            disabled={isProcessing} 
+            className={`gap-2 ${isProcessing ? 'animate-pulse' : 'hover:scale-105'} transition-all`}
+          >
+            <Camera className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
+            {isProcessing ? "Analyzing..." : "Capture Passport"}
           </Button>
           <Button onClick={startAutoCapture} disabled={isProcessing} variant="secondary" className="gap-2">
             <Camera className="h-4 w-4" />
