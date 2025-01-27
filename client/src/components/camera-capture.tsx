@@ -209,6 +209,13 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
     const context = canvas.getContext('2d');
     if (!context) return;
 
+    // Force initial capture
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+    const initialQualityCheck = await checkImageQuality(canvas);
+    setQualityScore(initialQualityCheck.isValid ? 85 : 45);
+
     const captureInterval = setInterval(async () => {
       if (video.paused || video.ended || !isAutoCapturing) {
         clearInterval(captureInterval);
