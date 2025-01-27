@@ -209,16 +209,24 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    // Force initial capture
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0);
-    const initialQualityCheck = await checkImageQuality(canvas);
-    setQualityScore(initialQualityCheck.isValid ? 85 : 45);
+    let lastApiCall = 0;
+    const API_CALL_DELAY = 2000; // Minimum 2 seconds between API calls
+    let frameCount = 0;
+    let motionScore = 0;
+    let lastImageData: ImageData | null = null;
 
-    const captureInterval = setInterval(async () => {
-      if (video.paused || video.ended || !isAutoCapturing) {
-        clearInterval(captureInterval);
+    const analyzeMotion = (imageData1: ImageData, imageData2: ImageData) => {
+      const data1 = imageData1.data;
+      const data2 = imageData2.data;
+      let diff = 0;
+      for (let i = 0; i < data1.length; i += 4) {
+        diff += Math.abs(data1[i] - data2[i]);
+      }
+      return diff / (data1.length / 4);
+    };
+
+    const processFrame = async () => {
+      if (!isAutoCapturing || video.paused || video.ended) {
         setIsAutoCapturing(false);
         return;
       }
@@ -227,20 +235,34 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0);
       
-      const qualityCheck = await checkImageQuality(canvas);
-      const score = qualityCheck.isValid ? 
-        Math.random() * 30 + 70 : // Random score between 70-100 if valid
-        Math.random() * 70; // Random score between 0-70 if invalid
-      setQualityScore(score);
+      const currentImageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      
+      if (lastImageData) {
+        motionScore = analyzeMotion(currentImageData, lastImageData);
+        setQualityScore(Math.min(100, (100 - motionScore) * 1.2));
+      }
+      
+      lastImageData = currentImageData;
+      frameCount++;
 
-      if (qualityCheck.isValid) {
-        const success = await analyzeFrame(context, canvas);
-        if (success) {
-          clearInterval(captureInterval);
-          setIsAutoCapturing(false);
+      const now = Date.now();
+      if (now - lastApiCall >= API_CALL_DELAY && motionScore < 20 && frameCount > 10) {
+        lastApiCall = now;
+        const qualityCheck = await checkImageQuality(canvas);
+        
+        if (qualityCheck.isValid) {
+          const success = await analyzeFrame(context, canvas);
+          if (success) {
+            setIsAutoCapturing(false);
+            return;
+          }
         }
       }
-    }, autoCapturePeriod);
+
+      requestAnimationFrame(processFrame);
+    };
+
+    requestAnimationFrame(processFrame);
 
     // Cleanup function
     return () => {
