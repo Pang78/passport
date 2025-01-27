@@ -157,10 +157,10 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     }
   };
 
-  const captureImage = async () => {
-    setIsProcessing(true); // Set loading state to true
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current) {
-      setIsProcessing(false); // Set loading state to false if error occurs
       return;
     }
 
@@ -168,7 +168,6 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     if (!context) {
-      setIsProcessing(false); // Set loading state to false if error occurs
       return;
     }
 
@@ -188,6 +187,9 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       canvas.height = cropHeight;
       context.putImageData(croppedImageData, 0, 0);
     }
+
+    const previewDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    setPreviewImage(previewDataUrl);
 
     const qualityCheck = await checkImageQuality(canvas);
 
@@ -245,8 +247,59 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     };
   }, [initializeCamera]);
 
+  const processImage = async () => {
+    setIsProcessing(true);
+    if (!previewImage) return;
+
+    const qualityCheck = await checkImageQuality(canvasRef.current!);
+
+    if (!qualityCheck.isValid) {
+      toast({
+        title: "Quality Check Failed",
+        description: qualityCheck.message,
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      const blob = await (await fetch(previewImage)).blob();
+      formData.append('image', blob, 'passport.jpg');
+
+      const response = await fetch('/api/extract-passport', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const data = await response.json();
+      console.log('Camera capture processed:', data);
+      onImageCaptured([data]);
+
+      toast({
+        title: "Success",
+        description: "Image captured and processed successfully",
+      });
+      setPreviewImage(null);
+    } catch (error: any) {
+      toast({
+        title: "Processing Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
-    <div className="relative border rounded-lg p-4">
+    <>
+      <div className="relative border rounded-lg p-4">
       <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
         <video
           ref={videoRef}
@@ -339,7 +392,35 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
           {isProcessing ? "Processing..." : "Capture"}
         </Button>
       </div>
-    </div>
+      </div>
+      
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Preview Captured Image</DialogTitle>
+          </DialogHeader>
+          {previewImage && (
+            <div className="space-y-4">
+              <div className="aspect-[3/4] relative rounded-lg overflow-hidden border">
+                <img
+                  src={previewImage}
+                  alt="Captured preview"
+                  className="object-contain w-full h-full"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setPreviewImage(null)}>
+                  Retake
+                </Button>
+                <Button onClick={processImage} disabled={isProcessing}>
+                  {isProcessing ? "Processing..." : "Process Image"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
