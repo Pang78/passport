@@ -197,9 +197,7 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
     return false;
   };
 
-  const [isAutoCapturing, setIsAutoCapturing] = useState(false);
   const [qualityScore, setQualityScore] = useState<number>(0);
-  const autoCapturePeriod = 5000; // 5 seconds
 
   const startAutoCapture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -351,7 +349,9 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
   };
 
   useEffect(() => {
-    initializeCamera();
+    initializeCamera().then(() => {
+      startAutoCapture();
+    });
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -521,24 +521,11 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
         </div>
 
         <div className="flex gap-2">
-          <Button 
-            onClick={captureImage} 
-            disabled={isProcessing} 
-            className={`gap-2 ${isProcessing ? 'animate-pulse' : 'hover:scale-105'} transition-all`}
-          >
-            <Camera className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
-            {isProcessing ? "Analyzing..." : "Capture Passport"}
-          </Button>
-          <Button 
-            onClick={() => isAutoCapturing ? setIsAutoCapturing(false) : startAutoCapture()} 
-            disabled={isProcessing}
-            variant={isAutoCapturing ? "destructive" : "secondary"}
-            className="gap-2 min-w-[140px]"
-          >
-            <Camera className={`h-4 w-4 ${isAutoCapturing ? 'animate-pulse' : ''}`} />
-            {isAutoCapturing ? 'Stop Auto Capture' : 'Start Auto Capture'}
-          </Button>
-          {isAutoCapturing && (
+          <div className="flex items-center gap-2">
+            <div className={`h-4 w-4 ${isProcessing ? 'animate-spin' : 'animate-pulse'}`}>•</div>
+            <span className="text-sm">{isProcessing ? "Analyzing..." : "Auto-capturing"}</span>
+          </div>
+          {(
             <div className="fixed bottom-4 right-4 bg-black/75 text-white p-4 rounded-lg space-y-2">
               <div className="text-sm">Quality Score</div>
               <div className="flex items-center gap-2">
