@@ -43,6 +43,7 @@ export type PassportData = {
   };
   overall_confidence?: number;
   extraction_notes?: string[];
+  passportPhoto?: string; // Added passportPhoto field
 };
 
 export default function Home() {
@@ -50,6 +51,9 @@ export default function Home() {
     const saved = localStorage.getItem('passportData');
     return saved ? JSON.parse(saved) : [];
   });
+  const [selectedPassport, setSelectedPassport] = useState<PassportData | null>(null);
+  const [showModal, setShowModal] = useState(false);
+
 
   // Save to localStorage whenever data changes
   useEffect(() => {
@@ -212,11 +216,16 @@ export default function Home() {
                         <TableHead>Date of Expiry</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Confidence</TableHead>
+                        <TableHead></TableHead> {/* Added empty TableHead for delete button */}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {passportDataList.map((data, index) => (
-                        <TableRow key={index}>
+                        <TableRow 
+                          key={index} 
+                          className="cursor-pointer hover:bg-gray-50"
+                          onClick={() => {setSelectedPassport(data); setShowModal(true);}}
+                        >
                           <TableCell className="font-medium">
                             {typeof data.fullName === 'object' ? data.fullName.value : data.fullName}
                           </TableCell>
@@ -254,7 +263,7 @@ export default function Home() {
                                 : 'N/A'}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <Button 
                               variant="ghost" 
                               size="sm"
@@ -271,6 +280,26 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Modal */}
+          {showModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+                {selectedPassport && (
+                  <>
+                    <h2 className="text-xl font-bold mb-4">Passport Details</h2>
+                    <div className="mb-2">
+                      <img src={selectedPassport.passportPhoto || '/placeholder.jpg'} alt="Passport Photo" className="w-full max-h-48 object-contain"/>
+                    </div>
+                    <p>Full Name: {typeof selectedPassport.fullName === 'object' ? selectedPassport.fullName.value : selectedPassport.fullName}</p>
+                    <p>Passport Number: {typeof selectedPassport.passportNumber === 'object' ? selectedPassport.passportNumber.value : selectedPassport.passportNumber}</p>
+                    {/* Add other details here */}
+                    <Button onClick={() => setShowModal(false)}>Close</Button>
+                  </>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </main>
