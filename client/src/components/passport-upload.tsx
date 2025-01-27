@@ -27,25 +27,37 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
   const extractData = useMutation({
     mutationFn: async (files: File[]) => {
       setCompletedFiles(0);
-      const results = await Promise.all(
-        files.map(async (file) => {
-          const formData = new FormData();
-          formData.append("image", file);
+      const batchSize = 5;
+      const results = [];
+      
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+          batch.map(async (file) => {
+            const formData = new FormData();
+            formData.append("image", file);
 
-          const response = await fetch("/api/extract-passport", {
-            method: "POST",
-            body: formData,
-          });
+            const response = await fetch("/api/extract-passport", {
+              method: "POST",
+              body: formData,
+            });
 
-          if (!response.ok) {
-            throw new Error(`Failed to process ${file.name}: ${await response.text()}`);
-          }
+            if (!response.ok) {
+              throw new Error(`Failed to process ${file.name}: ${await response.text()}`);
+            }
 
-          const data = await response.json();
-          setCompletedFiles(prev => prev + 1);
-          return data;
-        })
-      );
+            const data = await response.json();
+            setCompletedFiles(prev => prev + 1);
+            return data;
+          })
+        );
+        
+        results.push(...batchResults);
+        // Small delay between batches to prevent overload
+        if (i + batchSize < files.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
 
       return results;
     },
