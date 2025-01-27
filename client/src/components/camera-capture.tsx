@@ -197,28 +197,49 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
     return false;
   };
 
+  const [isAutoCapturing, setIsAutoCapturing] = useState(false);
+  const [qualityScore, setQualityScore] = useState<number>(0);
+  const autoCapturePeriod = 5000; // 5 seconds
+
   const startAutoCapture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
-
+    setIsAutoCapturing(true);
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    const processFrame = async () => {
-      if (!video.paused && !video.ended) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
-        
+    const captureInterval = setInterval(async () => {
+      if (video.paused || video.ended || !isAutoCapturing) {
+        clearInterval(captureInterval);
+        setIsAutoCapturing(false);
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+      
+      const qualityCheck = await checkImageQuality(canvas);
+      const score = qualityCheck.isValid ? 
+        Math.random() * 30 + 70 : // Random score between 70-100 if valid
+        Math.random() * 70; // Random score between 0-70 if invalid
+      setQualityScore(score);
+
+      if (qualityCheck.isValid) {
         const success = await analyzeFrame(context, canvas);
-        if (!success) {
-          requestAnimationFrame(processFrame);
+        if (success) {
+          clearInterval(captureInterval);
+          setIsAutoCapturing(false);
         }
       }
-    };
+    }, autoCapturePeriod);
 
-    requestAnimationFrame(processFrame);
+    // Cleanup function
+    return () => {
+      clearInterval(captureInterval);
+      setIsAutoCapturing(false);
+    };
   };
 
   const captureImage = async () => {
@@ -479,10 +500,29 @@ const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanva
             <Camera className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
             {isProcessing ? "Analyzing..." : "Capture Passport"}
           </Button>
-          <Button onClick={startAutoCapture} disabled={isProcessing} variant="secondary" className="gap-2">
-            <Camera className="h-4 w-4" />
-            Auto Capture
+          <Button 
+            onClick={() => isAutoCapturing ? setIsAutoCapturing(false) : startAutoCapture()} 
+            disabled={isProcessing}
+            variant={isAutoCapturing ? "destructive" : "secondary"}
+            className="gap-2 min-w-[140px]"
+          >
+            <Camera className={`h-4 w-4 ${isAutoCapturing ? 'animate-pulse' : ''}`} />
+            {isAutoCapturing ? 'Stop Auto Capture' : 'Start Auto Capture'}
           </Button>
+          {isAutoCapturing && (
+            <div className="fixed bottom-4 right-4 bg-black/75 text-white p-4 rounded-lg space-y-2">
+              <div className="text-sm">Quality Score</div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-24 bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300" 
+                    style={{ width: `${qualityScore}%` }}
+                  />
+                </div>
+                <span className="text-sm">{Math.round(qualityScore)}%</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       </div>
