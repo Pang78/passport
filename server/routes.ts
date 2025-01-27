@@ -38,7 +38,13 @@ export function registerRoutes(app: Express): Server {
       const base64Image = processedBuffer.toString("base64");
       const passportData = await extractPassportData(base64Image);
 
-      res.json(passportData);
+      // Include the processed image in response
+      const passportDataWithPhoto = {
+        ...passportData,
+        passportPhoto: `data:image/jpeg;base64,${base64Image}`
+      };
+
+      res.json(passportDataWithPhoto);
     } catch (error: any) {
       res.status(500).send(error.message);
     }

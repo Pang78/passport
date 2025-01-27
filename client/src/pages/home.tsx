@@ -289,13 +289,27 @@ export default function Home() {
                 {selectedPassport && (
                   <>
                     <h2 className="text-xl font-bold mb-4">Passport Details</h2>
-                    <div className="mb-2">
-                      <img src={selectedPassport.passportPhoto || '/placeholder.jpg'} alt="Passport Photo" className="w-full max-h-48 object-contain"/>
+                    <div className="space-y-4">
+                      {selectedPassport.passportPhoto && (
+                        <div className="border rounded-lg p-2 bg-gray-50">
+                          <img 
+                            src={selectedPassport.passportPhoto} 
+                            alt="Passport Photo" 
+                            className="w-full max-h-64 object-contain rounded"
+                          />
+                        </div>
+                      )}
+                      <div className="grid gap-2">
+                        <p><span className="font-semibold">Full Name:</span> {typeof selectedPassport.fullName === 'object' ? selectedPassport.fullName.value : selectedPassport.fullName}</p>
+                        <p><span className="font-semibold">Passport Number:</span> {typeof selectedPassport.passportNumber === 'object' ? selectedPassport.passportNumber.value : selectedPassport.passportNumber}</p>
+                        <p><span className="font-semibold">Nationality:</span> {typeof selectedPassport.nationality === 'object' ? selectedPassport.nationality.value : selectedPassport.nationality}</p>
+                        <p><span className="font-semibold">Date of Birth:</span> {typeof selectedPassport.dateOfBirth === 'object' ? selectedPassport.dateOfBirth.value : selectedPassport.dateOfBirth}</p>
+                        <p><span className="font-semibold">Date of Expiry:</span> {typeof selectedPassport.dateOfExpiry === 'object' ? selectedPassport.dateOfExpiry.value : selectedPassport.dateOfExpiry}</p>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button onClick={() => setShowModal(false)}>Close</Button>
+                      </div>
                     </div>
-                    <p>Full Name: {typeof selectedPassport.fullName === 'object' ? selectedPassport.fullName.value : selectedPassport.fullName}</p>
-                    <p>Passport Number: {typeof selectedPassport.passportNumber === 'object' ? selectedPassport.passportNumber.value : selectedPassport.passportNumber}</p>
-                    {/* Add other details here */}
-                    <Button onClick={() => setShowModal(false)}>Close</Button>
                   </>
                 )}
               </div>
