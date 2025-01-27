@@ -160,7 +160,68 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-const captureImage = async () => {
+const analyzeFrame = async (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+    const qualityCheck = await checkImageQuality(canvas);
+    if (qualityCheck.isValid) {
+      try {
+        const base64Image = canvas.toDataURL('image/jpeg', 0.95);
+        const formData = new FormData();
+        const blob = await (await fetch(base64Image)).blob();
+        formData.append('image', blob, 'passport.jpg');
+
+        const response = await fetch('/api/extract-passport', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const data = await response.json();
+        if (data.overall_confidence > 0.7) {
+          onImageCaptured([data]);
+          toast({
+            title: "Success",
+            description: "Passport data extracted successfully",
+          });
+          if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+          }
+          return true;
+        }
+      } catch (error) {
+        console.error('Processing error:', error);
+      }
+    }
+    return false;
+  };
+
+  const startAutoCapture = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const processFrame = async () => {
+      if (!video.paused && !video.ended) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const success = await analyzeFrame(context, canvas);
+        if (!success) {
+          requestAnimationFrame(processFrame);
+        }
+      }
+    };
+
+    requestAnimationFrame(processFrame);
+  };
+
+  const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current) {
       return;
     }
@@ -388,10 +449,16 @@ const captureImage = async () => {
           </Button>
         </div>
 
-        <Button onClick={captureImage} disabled={isProcessing} className="gap-2">
-          <Camera className="h-4 w-4" />
-          {isProcessing ? "Processing..." : "Capture"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={captureImage} disabled={isProcessing} className="gap-2">
+            <Camera className="h-4 w-4" />
+            {isProcessing ? "Processing..." : "Capture"}
+          </Button>
+          <Button onClick={startAutoCapture} disabled={isProcessing} variant="secondary" className="gap-2">
+            <Camera className="h-4 w-4" />
+            Auto Capture
+          </Button>
+        </div>
       </div>
       </div>
       
