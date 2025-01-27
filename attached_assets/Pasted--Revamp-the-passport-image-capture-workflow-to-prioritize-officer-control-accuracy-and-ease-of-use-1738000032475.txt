@@ -1,0 +1,42 @@
+
+Revamp the passport image capture workflow to prioritize officer control, accuracy, and ease of use. Replace the current autocapture system with a streamlined manual capture process while improving the camera interface for efficiency and reliability.
+
+Key Requirements:
+
+Remove Autocapture Feature
+Completely disable the existing autocapture functionality.
+Ensure no automated triggers (e.g., edge detection, auto-snapping) interfere with manual operation.
+Manual Capture Redesign
+Introduce a dedicated, prominent manual capture button (e.g., large circular UI element with haptic feedback).
+Allow officers to:
+Tap to focus freely.
+Adjust framing/alignment before capturing.
+Review/retake images instantly post-capture.
+Enhanced Camera Flow
+Alignment Guides:
+Add real-time overlay guides (e.g., passport outline, corner markers, text alignment grid).
+Include dynamic feedback (color changes/sound) when the passport is properly aligned.
+Lighting Optimization:
+Auto-detect glare/shadows and provide on-screen prompts (e.g., "Adjust angle to reduce glare").
+Edge Cases Handling:
+Simplify capture for non-standard passports (e.g., damaged spines, folded pages).
+Performance Improvements
+Reduce latency between capture and image processing.
+Ensure compatibility with low-light environments (e.g., airport checkpoints).
+User-Centric Additions:
+
+Training Mode: Include a demo/tutorial for new officers to practice alignment and capture.
+Error Prevention:
+Auto-flag blurry/glared images before submission.
+Add a "Best Practices" checklist (e.g., "Ensure MRZ code is visible").
+Example Workflow:
+
+Officer opens camera → sees alignment guides/overlay.
+Adjusts passport position → receives real-time feedback (e.g., green outline when aligned).
+Manually taps capture button → previews image.
+Chooses "Retake" or "Confirm" → proceeds to next step.
+Why This Works:
+
+Control: Prioritizes officer judgment over automation.
+Clarity: Visual/haptic feedback reduces training time.
+Efficiency: Streamlined flow minimizes repetitive actions.
