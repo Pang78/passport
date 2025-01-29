@@ -9,17 +9,19 @@ const openai = new OpenAI();
 
 const upload = multer({
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
   },
 });
 
 async function preprocessImage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
+  return sharp(buffer, { limitInputPixels: 50000000 })
+    .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 85, progressive: true })
     .rotate() // Auto-rotate based on EXIF
     .normalize() // Enhance contrast
     .modulate({ brightness: 1.1 }) // Slightly increase brightness
     .sharpen() // Enhance sharpness
-    .toBuffer();
+    .toBuffer({ resolveWithObject: false });
 }
 
 export function registerRoutes(app: Express): Server {
