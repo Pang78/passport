@@ -30,32 +30,36 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       const batchSize = 5;
       const results = [];
       
-      for (let i = 0; i < files.length; i += batchSize) {
-        const batch = files.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map(async (file) => {
-            const formData = new FormData();
-            formData.append("image", file);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("image", file);
 
-            const response = await fetch("/api/extract-passport", {
-              method: "POST",
-              body: formData,
-            });
+        try {
+          const response = await fetch("/api/extract-passport", {
+            method: "POST",
+            body: formData,
+          });
 
-            if (!response.ok) {
-              throw new Error(`Failed to process ${file.name}: ${await response.text()}`);
-            }
+          if (!response.ok) {
+            throw new Error(`Failed to process ${file.name}: ${await response.text()}`);
+          }
 
-            const data = await response.json();
-            setCompletedFiles(prev => prev + 1);
-            return data;
-          })
-        );
-        
-        results.push(...batchResults);
-        // Small delay between batches to prevent overload
-        if (i + batchSize < files.length) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          const data = await response.json();
+          results.push(data);
+          setCompletedFiles(prev => prev + 1);
+          
+          // Add delay between files to prevent resource exhaustion
+          if (i < files.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } catch (error) {
+          console.error(`Error processing ${file.name}:`, error);
+          toast({
+            title: "Processing Error",
+            description: `Failed to process ${file.name}. Continuing with remaining files.`,
+            variant: "destructive",
+          });
         }
       }
 
