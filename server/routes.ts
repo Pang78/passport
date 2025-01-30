@@ -4,6 +4,7 @@ import multer from "multer";
 import { extractPassportData } from "../client/src/lib/openai";
 import sharp from "sharp";
 import { OpenAI } from "openai";
+import crypto from "crypto";
 
 const openai = new OpenAI();
 
