@@ -6,6 +6,7 @@ const PassportSchema = z.object({
   fullName: z.string(),
   dateOfBirth: z.string().regex(/\d{4}-\d{2}-\d{2}/),
   passportNumber: z.string(),
+  idNumber: z.string(),
   nationality: z.string().length(3),
   dateOfIssue: z.string().regex(/\d{4}-\d{2}-\d{2}/),
   dateOfExpiry: z.string().regex(/\d{4}-\d{2}-\d{2}/),

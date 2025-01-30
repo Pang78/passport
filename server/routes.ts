@@ -23,33 +23,51 @@ const upload = multer({
 });
 
 // Optimized image processing pipeline
+const imageCache = new Map<string, { processed: Buffer; metadata: sharp.Metadata }>();
+
 async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; metadata: sharp.Metadata }> {
+  const hash = crypto.createHash('md5').update(buffer).digest('hex');
+  
+  if (imageCache.has(hash)) {
+    return imageCache.get(hash)!;
+  }
+
   try {
     const pipeline = sharp(buffer, { 
-      limitInputPixels: 25_000_000, // Limit input size
-      sequentialRead: true // Better for memory
+      limitInputPixels: 25_000_000,
+      sequentialRead: true,
+      cache: false
     });
 
     const metadata = await pipeline.metadata();
-
-    return {
+    
+    const result = {
       processed: await pipeline
-        .resize(1200, 1200, { 
+        .resize(800, 800, { 
           fit: 'inside',
           withoutEnlargement: true,
-          kernel: sharp.kernel.lanczos3
+          kernel: sharp.kernel.lanczos2
         })
         .jpeg({ 
-          quality: 70, 
+          quality: 60,
           progressive: true,
-          mozjpeg: true 
+          mozjpeg: true,
+          optimizeScans: true
         })
-        .withMetadata() // Keep important EXIF
         .toBuffer(),
       metadata
     };
+
+    imageCache.set(hash, result);
+    
+    // Limit cache size
+    if (imageCache.size > 100) {
+      const firstKey = imageCache.keys().next().value;
+      imageCache.delete(firstKey);
+    }
+
+    return result;
   } finally {
-    // Explicitly clean up buffers
     buffer = Buffer.alloc(0);
   }
 }

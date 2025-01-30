@@ -19,11 +19,13 @@ export type PassportData = {
   fullName: string | { value: string };
   dateOfBirth: string | { value: string };
   passportNumber: string | { value: string };
+  idNumber: string | { value: string };
   nationality: string | { value: string };
   dateOfIssue: string | { value: string };
   dateOfExpiry: string | { value: string };
   placeOfBirth: string | { value: string };
   issuingAuthority: string | { value: string };
+  imageUrl?: string;
   mrz?: {
     line1: string;
     line2: string;
