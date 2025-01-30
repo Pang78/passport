@@ -166,6 +166,10 @@ export default function ImmigrationClearanceModal({
                     <div className="text-sm">
                       <span className="font-medium">TV Group:</span>{" "}
                       99-Unclassified
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">TV Facility:</span>{" "}
+                      00-Nil
                     </div> 
                     <div className="text-sm">
                       <span className="font-medium">Clearance Mode:</span>{" "}
