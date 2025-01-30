@@ -268,7 +268,9 @@ export function validatePassportData(data: Record<string, any>): ValidationResul
   };
 
   // 1. Passport Number Validation
-  const passportNumber = data.passportNumber?.trim() || '';
+  const passportNumber = typeof data.passportNumber === 'object' 
+    ? data.passportNumber.value?.trim() 
+    : data.passportNumber?.trim() || '';
   if (!passportNumber) {
     addValidation('passportNumber', 'Missing passport number');
   } else {
