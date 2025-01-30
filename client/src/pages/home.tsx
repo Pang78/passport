@@ -3,7 +3,8 @@ import PassportUpload from "@/components/passport-upload";
 import CameraCapture from "@/components/camera-capture";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
+import ImmigrationClearanceModal from "@/components/immigration-clearance-modal";
+import {
   Table,
   TableBody,
   TableCell,
@@ -14,6 +15,18 @@ import {
 import { Download, Upload, Camera } from "lucide-react";
 import { useState, useEffect } from "react";
 import { validatePassportData } from "@/lib/validation";
+
+export type ImmigrationClearanceData = {
+  mot: string;
+  checkpoint: string;
+  arrivalDepartureDate: string;
+  arrivalDepartureTime: string;
+  tvGroup: string;
+  clearanceMode: string;
+  clearanceSource: string;
+  userId: string;
+  hostname: string;
+};
 
 export type PassportData = {
   fullName: string | { value: string };
@@ -45,7 +58,8 @@ export type PassportData = {
   };
   overall_confidence?: number;
   extraction_notes?: string[];
-  passportPhoto?: string; // Added passportPhoto field
+  passportPhoto?: string;
+  immigrationClearance?: ImmigrationClearanceData;
 };
 
 export default function Home() {
@@ -55,13 +69,30 @@ export default function Home() {
   });
   const [selectedPassport, setSelectedPassport] = useState<PassportData | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showImmigrationModal, setShowImmigrationModal] = useState(false);
+  const [immigrationData, setImmigrationData] = useState<ImmigrationClearanceData | null>(null);
+  const [tempPassportData, setTempPassportData] = useState<PassportData[]>([]);
 
-
-  // Save to localStorage whenever data changes
   useEffect(() => {
     localStorage.setItem('passportData', JSON.stringify(passportDataList));
     console.log('Passport data updated:', passportDataList);
   }, [passportDataList]);
+
+  const handleImmigrationSubmit = (data: ImmigrationClearanceData) => {
+    setImmigrationData(data);
+    const updatedPassportData = tempPassportData.map(passport => ({
+      ...passport,
+      immigrationClearance: {
+        ...data,
+        tvGroup: "99-Unclassified",
+        clearanceMode: "E-Enterprise",
+        clearanceSource: "M-Manual Entry",
+      },
+    }));
+    setPassportDataList(prev => [...prev, ...updatedPassportData]);
+    setShowImmigrationModal(false);
+    setTempPassportData([]);
+  };
 
   const deleteEntry = (index: number) => {
     setPassportDataList(prev => prev.filter((_, i) => i !== index));
@@ -76,7 +107,10 @@ export default function Home() {
       "Full Name", "Date of Birth", "Passport Number", "ID Number", "Nationality",
       "Date of Issue", "Date of Expiry", "Place of Birth", "Issuing Authority",
       "MRZ Line 1", "MRZ Line 2", "Overall Confidence", "Remarks", "Valid",
-      "Extraction Notes"
+      "Extraction Notes",
+      // Immigration clearance headers
+      "MOT", "Checkpoint", "Arrival/Departure Date", "Arrival/Departure Time",
+      "TV Group", "Clearance Mode", "Clearance Source", "User ID", "Hostname"
     ].join(",");
 
     const rows = passportDataList.map((data) => [
@@ -94,7 +128,17 @@ export default function Home() {
       data.overall_confidence?.toFixed(2) || "0",
       Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
       data.isValid ? "Yes" : "No",
-      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
+      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || ""),
+      // Immigration clearance data
+      data.immigrationClearance?.mot || "",
+      data.immigrationClearance?.checkpoint || "",
+      data.immigrationClearance?.arrivalDepartureDate || "",
+      data.immigrationClearance?.arrivalDepartureTime || "",
+      data.immigrationClearance?.tvGroup || "",
+      data.immigrationClearance?.clearanceMode || "",
+      data.immigrationClearance?.clearanceSource || "",
+      data.immigrationClearance?.userId || "",
+      data.immigrationClearance?.hostname || ""
     ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
 
     const csvContent = [headers, ...rows].join("\n");
@@ -116,18 +160,15 @@ export default function Home() {
         remarks: [
           ...(remarks || []),
           ...(passport.extraction_notes || []),
-          ...(passport.overall_confidence !== undefined && passport.overall_confidence < 0.5 
-            ? [`Low confidence extraction (${(passport.overall_confidence * 100).toFixed(1)}%)`] 
+          ...(passport.overall_confidence !== undefined && passport.overall_confidence < 0.5
+            ? [`Low confidence extraction (${(passport.overall_confidence * 100).toFixed(1)}%)`]
             : [])
         ],
       };
     });
-    setPassportDataList(prev => [...prev, ...validatedData]);
-    console.group('Upload History');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Uploaded Files:', validatedData);
-    console.log('Total Records:', passportDataList.length + validatedData.length);
-    console.groupEnd();
+
+    setTempPassportData(validatedData);
+    setShowImmigrationModal(true);
   };
 
   return (
@@ -190,15 +231,15 @@ export default function Home() {
                   <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
                     Extracted Data ({passportDataList.length} passport{passportDataList.length !== 1 ? "s" : ""})
                   </h2>
-                  <Button 
-                    onClick={exportToCSV} 
-                    variant="outline" 
+                  <Button
+                    onClick={exportToCSV}
+                    variant="outline"
                     className="w-full sm:w-auto gap-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300"
                   >
                     <Download className="w-4 h-4" />
                     Export CSV
                   </Button>
-                  <Button 
+                  <Button
                     onClick={clearAllData}
                     variant="destructive"
                     className="ml-2"
@@ -223,10 +264,10 @@ export default function Home() {
                     </TableHeader>
                     <TableBody>
                       {passportDataList.map((data, index) => (
-                        <TableRow 
-                          key={index} 
+                        <TableRow
+                          key={index}
                           className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => {setSelectedPassport(data); setShowModal(true);}}
+                          onClick={() => { setSelectedPassport(data); setShowModal(true); }}
                         >
                           <TableCell className="font-medium">
                             {typeof data.fullName === 'object' ? data.fullName.value : data.fullName}
@@ -245,8 +286,8 @@ export default function Home() {
                           </TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              data.isValid 
-                                ? 'bg-green-100 text-green-800' 
+                              data.isValid
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-red-100 text-red-800'
                             }`}>
                               {data.isValid ? 'Valid' : 'Invalid'}
@@ -254,20 +295,20 @@ export default function Home() {
                           </TableCell>
                           <TableCell>
                             <span className={`${
-                              data.overall_confidence < 0.5 
-                                ? 'text-red-600' 
-                                : data.overall_confidence < 0.8 
-                                  ? 'text-yellow-600' 
+                              data.overall_confidence < 0.5
+                                ? 'text-red-600'
+                                : data.overall_confidence < 0.8
+                                  ? 'text-yellow-600'
                                   : 'text-green-600'
                             }`}>
-                              {data.overall_confidence !== undefined 
-                                ? `${(data.overall_confidence * 100).toFixed(1)}%` 
+                              {data.overall_confidence !== undefined
+                                ? `${(data.overall_confidence * 100).toFixed(1)}%`
                                 : 'N/A'}
                             </span>
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => deleteEntry(index)}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -294,9 +335,9 @@ export default function Home() {
                     <div className="space-y-4">
                       {selectedPassport.passportPhoto && (
                         <div className="border rounded-lg p-2 bg-gray-50">
-                          <img 
-                            src={selectedPassport.passportPhoto} 
-                            alt="Passport Photo" 
+                          <img
+                            src={selectedPassport.passportPhoto}
+                            alt="Passport Photo"
                             className="w-full max-h-64 object-contain rounded"
                           />
                         </div>
@@ -317,6 +358,16 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* Add Immigration Clearance Modal */}
+          <ImmigrationClearanceModal
+            open={showImmigrationModal}
+            onClose={() => {
+              setShowImmigrationModal(false);
+              setTempPassportData([]);
+            }}
+            onSubmit={handleImmigrationSubmit}
+          />
         </div>
       </main>
     </div>
