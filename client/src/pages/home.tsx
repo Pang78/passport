@@ -110,7 +110,7 @@ export default function Home() {
       "Extraction Notes",
       // Immigration clearance headers
       "MOT", "Checkpoint", "Arrival/Departure Date", "Arrival/Departure Time",
-      "TV Group", "Clearance Mode", "Clearance Source", "User ID", "Hostname"
+      "TV Group", "TV Facility", "Clearance Mode", "Clearance Source", "User ID", "Hostname"
     ].join(",");
 
     const rows = passportDataList.map((data) => [
