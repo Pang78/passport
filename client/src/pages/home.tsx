@@ -135,9 +135,10 @@ export default function Home() {
       data.immigrationClearance?.checkpoint || "",
       data.immigrationClearance?.arrivalDepartureDate || "",
       data.immigrationClearance?.arrivalDepartureTime || "",
-      data.immigrationClearance?.tvGroup || "",
-      data.immigrationClearance?.clearanceMode || "",
-      data.immigrationClearance?.clearanceSource || "",
+      "99",
+      "00",
+      "E",
+      "M",
       data.immigrationClearance?.userId || "",
       data.immigrationClearance?.hostname || ""
     ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
