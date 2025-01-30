@@ -85,6 +85,7 @@ export default function Home() {
       immigrationClearance: {
         ...data,
         tvGroup: "99-Unclassified",
+        tvFacility: "00",
         clearanceMode: "E-Enterprise",
         clearanceSource: "M-Manual Entry",
       },
