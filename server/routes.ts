@@ -7,94 +7,149 @@ import { OpenAI } from "openai";
 
 const openai = new OpenAI();
 
+// Configure multer with safe limits
 const upload = multer({
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 5 * 1024 * 1024, // Reduce to 5MB for safety
+    files: 1 // Only allow single file upload
   },
+  fileFilter: (_, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
 });
 
-async function preprocessImage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer, { limitInputPixels: 50000000 })
-    .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85, progressive: true })
-    .rotate() // Auto-rotate based on EXIF
-    .normalize() // Enhance contrast
-    .modulate({ brightness: 1.1 }) // Slightly increase brightness
-    .sharpen() // Enhance sharpness
-    .toBuffer({ resolveWithObject: false });
+// Optimized image processing pipeline
+async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; metadata: sharp.Metadata }> {
+  try {
+    const pipeline = sharp(buffer, { 
+      limitInputPixels: 25_000_000, // Limit input size
+      sequentialRead: true // Better for memory
+    });
+
+    const metadata = await pipeline.metadata();
+
+    return {
+      processed: await pipeline
+        .resize(1200, 1200, { 
+          fit: 'inside',
+          withoutEnlargement: true,
+          kernel: sharp.kernel.lanczos3
+        })
+        .jpeg({ 
+          quality: 70, 
+          progressive: true,
+          mozjpeg: true 
+        })
+        .withMetadata() // Keep important EXIF
+        .toBuffer(),
+      metadata
+    };
+  } finally {
+    // Explicitly clean up buffers
+    buffer = Buffer.alloc(0);
+  }
 }
 
 export function registerRoutes(app: Express): Server {
+  // Add safety headers
+  app.use((_, res, next) => {
+    res.header('Content-Type', 'application/json; charset=utf-8');
+    res.header('X-Content-Type-Options', 'nosniff');
+    next();
+  });
+
   app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).send("No image file uploaded");
+      if (!req.file) return res.status(400).json({ error: "No image provided" });
+
+      // Process with memory safety
+      const { processed, metadata } = await safeProcessImage(req.file.buffer);
+
+      if (processed.length > 2 * 1024 * 1024) { // 2MB final check
+        return res.status(413).json({ error: "Image too large after processing" });
       }
 
-      if (!req.file.mimetype.startsWith("image/")) {
-        return res.status(400).send("Uploaded file must be an image");
-      }
+      // Use thumbnail for response
+      const thumbnail = await sharp(processed)
+        .resize(300, 300)
+        .jpeg({ quality: 50 })
+        .toBuffer();
 
-      // Preprocess the image
-      const processedBuffer = await preprocessImage(req.file.buffer);
-      const base64Image = processedBuffer.toString("base64");
-      const passportData = await extractPassportData(base64Image);
+      const passportData = await extractPassportData(processed.toString("base64"));
 
-      // Include the processed image in response
-      const passportDataWithPhoto = {
+      res.json({
         ...passportData,
-        passportPhoto: `data:image/jpeg;base64,${base64Image}`
-      };
+        metadata: {
+          dimensions: { 
+            width: metadata.width, 
+            height: metadata.height 
+          },
+          size: processed.length
+        },
+        thumbnail: `data:image/jpeg;base64,${thumbnail.toString("base64")}`
+      });
 
-      res.json(passportDataWithPhoto);
     } catch (error: any) {
-      res.status(500).send(error.message);
+      res.status(500).json({ 
+        error: "Processing failed",
+        details: error.message.slice(0, 100) // Limit error exposure
+      });
     }
   });
 
   app.post("/api/check-quality", upload.single("image"), async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).send("No image file uploaded");
-      }
+      if (!req.file) return res.status(400).json({ error: "No image provided" });
 
-      const base64Image = req.file.buffer.toString("base64");
+      // Create optimized preview for AI analysis
+      const preview = await sharp(req.file.buffer)
+        .resize(800, 800)
+        .jpeg({ quality: 60 })
+        .toBuffer();
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are an expert at analyzing passport photo quality. Evaluate if the image is clear enough for passport data extraction."
+            content: "Analyze passport photo quality. Respond with JSON: { isValid: boolean, issues: string[] }"
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Is this image clear enough to extract passport data? Respond with JSON only containing isValid (boolean) and message (string)."
+                text: "Evaluate this passport photo for data extraction suitability:"
               },
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`
+                  url: `data:image/jpeg;base64,${preview.toString("base64")}`
                 }
               }
             ],
           }
         ],
-        max_tokens: 150,
+        response_format: { type: "json_object" },
+        max_tokens: 200,
       });
 
       const content = response.choices[0].message.content;
-      if (!content) {
-        throw new Error("No content received from OpenAI");
-      }
+      if (!content) throw new Error("Empty AI response");
 
-      const result = JSON.parse(content.replace(/```json\s*|\s*```/g, ''));
-      res.json(result);
+      res.json(JSON.parse(content));
+
     } catch (error: any) {
-      res.status(500).send(error.message);
+      res.status(500).json({
+        error: "Quality check failed",
+        details: error.message.includes("rate limit") 
+          ? "Server busy, please try again later"
+          : "Internal error"
+      });
     }
   });
 
