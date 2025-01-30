@@ -52,7 +52,7 @@ export default function ImmigrationClearanceModal({
   onSubmit,
 }: ImmigrationClearanceModalProps) {
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(immigrationFormSchema),
     defaultValues: {
       mot: undefined,
       checkpoint: undefined,
