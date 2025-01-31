@@ -56,17 +56,6 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       }
 
       // Request camera access with fallback options
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: deviceId ? { exact: deviceId } : undefined,
-          width: { ideal: 1280 }, // Reduced from 1920 for better compatibility
-          height: { ideal: 720 }, // Reduced from 1080 for better compatibility
-          facingMode: deviceId ? undefined : "environment"
-        }
-      });
-      
-      setStream(newStream);
-
       const videoDevices = await initializeDevices();
       if (videoDevices.length === 0) {
         throw new Error("No camera devices available");
@@ -82,7 +71,8 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         video: {
           deviceId: targetDevice.deviceId,
           width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          height: { ideal: 1080 },
+          facingMode: deviceId ? undefined : "environment"
         }
       });
 
