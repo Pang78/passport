@@ -44,10 +44,20 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
   const initializeCamera = useCallback(async (deviceId?: string) => {
     try {
-      const permission = await navigator.permissions.query({ name: 'camera' as PermissionName });
-      if (permission.state === 'denied') {
-        throw new Error("Camera access is blocked. Please enable it in your browser settings.");
-      }
+      // First try to get direct camera access
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: "environment"
+        }
+      });
+      
+      setStream(prev => {
+        prev?.getTracks().forEach(track => track.stop());
+        return stream;
+      });
 
       const videoDevices = await initializeDevices();
       if (videoDevices.length === 0) {
@@ -75,16 +85,22 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       setActiveDeviceId(targetDevice.deviceId);
 
       if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(e => {
-            toast({
-              title: "Playback Error",
-              description: "Failed to start video stream",
-              variant: "destructive",
-            });
-          });
-        };
+        videoRef.current.srcObject = stream;
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play()
+                .then(resolve)
+                .catch(e => {
+                  toast({
+                    title: "Playback Error",
+                    description: "Failed to start video stream. Please check your camera permissions.",
+                    variant: "destructive",
+                  });
+                });
+            };
+          }
+        });
       }
     } catch (error: any) {
       const message = error.name === 'NotAllowedError' 
