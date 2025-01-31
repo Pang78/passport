@@ -47,8 +47,8 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       // Stop any existing streams
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
-        setStream(null);
       }
+      setStream(null);
 
       // Reset video element
       if (videoRef.current) {
@@ -56,7 +56,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       }
 
       // Request camera access with fallback options
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const newStream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: deviceId ? { exact: deviceId } : undefined,
           width: { ideal: 1280 }, // Reduced from 1920 for better compatibility
@@ -65,7 +65,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         }
       });
       
-      setStream(stream);
+      setStream(newStream);
 
       const videoDevices = await initializeDevices();
       if (videoDevices.length === 0) {
