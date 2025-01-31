@@ -1,9 +1,10 @@
+
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, RotateCw, Lightbulb } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { PassportData } from "@/pages/home";
+import type { PassportData } from "@/lib/types";
 
 interface CameraCaptureProps {
   onImageCaptured: (data: PassportData[]) => void;
@@ -17,13 +18,24 @@ interface QualityCheckResult {
 const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [activeDeviceId, setActiveDeviceId] = useState<string>("");
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const stopCurrentStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
 
   const initializeDevices = useCallback(async () => {
     try {
@@ -31,7 +43,8 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       const videoDevices = mediaDevices.filter(device => device.kind === 'videoinput');
       setDevices(videoDevices);
       return videoDevices;
-    } catch (error) {
+    } catch (error: any) {
+      setCameraError("Failed to access media devices");
       toast({
         title: "Device Error",
         description: "Failed to access media devices",
@@ -42,12 +55,10 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   }, [toast]);
 
   const initializeCamera = useCallback(async (deviceId?: string) => {
-    let newStream: MediaStream | null = null;
-    try {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+    setCameraError(null);
+    stopCurrentStream();
 
+    try {
       const videoDevices = await initializeDevices();
       if (videoDevices.length === 0) {
         throw new Error("No camera devices available");
@@ -59,7 +70,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
       if (!targetDevice) throw new Error("Requested device not found");
 
-      newStream = await navigator.mediaDevices.getUserMedia({
+      const newStream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: targetDevice.deviceId,
           width: { ideal: 1920 },
@@ -68,58 +79,62 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         }
       });
 
-      setStream(prev => {
-        prev?.getTracks().forEach(track => track.stop());
-        return newStream;
-      });
+      streamRef.current = newStream;
       setActiveDeviceId(targetDevice.deviceId);
 
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
-
+        
         await new Promise<void>((resolve, reject) => {
           if (!videoRef.current) return reject(new Error("Video element not found"));
+          
+          const timeoutDuration = 30000; // 30 seconds timeout
+          const timeout = setTimeout(() => {
+            reject(new Error("Video stream initialization timed out"));
+          }, timeoutDuration);
 
           const onLoaded = () => {
+            clearTimeout(timeout);
             videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
             resolve();
           };
 
           const onError = (e: Event) => {
+            clearTimeout(timeout);
             videoRef.current?.removeEventListener('error', onError);
             reject(new Error(`Video error: ${e}`));
           };
 
           videoRef.current.addEventListener('loadedmetadata', onLoaded);
           videoRef.current.addEventListener('error', onError);
-
-          setTimeout(() => {
-            reject(new Error("Video stream timed out"));
-          }, 10000);
         });
 
         await videoRef.current.play();
       }
     } catch (error: any) {
-      newStream?.getTracks().forEach(track => track.stop());
+      stopCurrentStream();
       const message = error.name === 'NotAllowedError' 
         ? "Camera access was denied. Please allow camera access and try again."
         : error.message;
 
+      setCameraError(message);
       toast({
         title: "Camera Error",
         description: message,
         variant: "destructive",
       });
     }
-  }, [initializeDevices, stream, toast]);
-  
-  // Flash control logic
+  }, [initializeDevices, stopCurrentStream, toast]);
+
+  const switchDevice = useCallback(async (newDeviceId: string) => {
+    await initializeCamera(newDeviceId);
+  }, [initializeCamera]);
+
   const toggleFlash = useCallback(async () => {
-    if (!stream) return;
+    if (!streamRef.current) return;
 
     try {
-      const track = stream.getVideoTracks()[0];
+      const track = streamRef.current.getVideoTracks()[0];
       const capabilities = track.getCapabilities();
       const constraints: MediaTrackConstraintSet = {};
 
@@ -131,7 +146,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         throw new Error("Flash not supported by this device");
       }
 
-      await track.applyConstraints({ advanced: [constraints] as any });
+      await track.applyConstraints({ advanced: [constraints] });
       setFlashEnabled(!flashEnabled);
     } catch (error: any) {
       toast({
@@ -140,13 +155,12 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         variant: "destructive",
       });
     }
-  }, [stream, flashEnabled, toast]);
+  }, [flashEnabled, toast]);
 
-  // Image quality validation
   const checkImageQuality = useCallback(async (canvas: HTMLCanvasElement): Promise<QualityCheckResult> => {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
 
       const blob = await new Promise<Blob>(resolve => 
         canvas.toBlob(blob => blob && resolve(blob), 'image/jpeg', 0.9)
@@ -177,7 +191,6 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     }
   }, []);
 
-  // Image capture and processing
   const captureImage = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -243,55 +256,68 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     }
   }, [previewImage, checkImageQuality, onImageCaptured, toast]);
 
-  // Camera lifecycle management
   useEffect(() => {
     initializeCamera();
     return () => {
-      stream?.getTracks().forEach(track => track.stop());
+      stopCurrentStream();
     };
-  }, [initializeCamera]);
+  }, [initializeCamera, stopCurrentStream]);
 
   return (
     <div className="space-y-4">
       <div className="relative border rounded-lg p-4 bg-muted/50">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-contain"
-            aria-label="Camera preview"
-          />
-          <canvas ref={canvasRef} className="hidden" />
-
-          {/* Capture overlay */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="relative h-full">
-              <div className="absolute inset-[15%] border-2 border-primary/50 rounded-lg">
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-primary/75 text-white px-3 py-1 rounded-full text-sm">
-                  Align passport within frame
-                </div>
-                <div className="absolute top-0 left-0 w-[20px] h-[20px] border-t-2 border-l-2 border-primary"></div>
-                <div className="absolute top-0 right-0 w-[20px] h-[20px] border-t-2 border-r-2 border-primary"></div>
-                <div className="absolute bottom-0 left-0 w-[20px] h-[20px] border-b-2 border-l-2 border-primary"></div>
-                <div className="absolute bottom-0 right-0 w-[20px] h-[20px] border-b-2 border-r-2 border-primary"></div>
+          {cameraError ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center p-4">
+                <p className="text-red-500 mb-2">{cameraError}</p>
+                <Button onClick={() => initializeCamera()}>
+                  <RotateCw className="mr-2 h-4 w-4" />
+                  Retry Camera
+                </Button>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-contain"
+                aria-label="Camera preview"
+              />
+              <canvas ref={canvasRef} className="hidden" />
 
-          {/* Capture controls */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-4">
-            <Button
-              size="icon"
-              onClick={captureImage}
-              disabled={isProcessing}
-              aria-label="Take photo"
-              className="h-16 w-16 rounded-full shadow-lg"
-            >
-              <Camera className="h-8 w-8" />
-            </Button>
-          </div>
+              {/* Capture overlay */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="relative h-full">
+                  <div className="absolute inset-[15%] border-2 border-primary/50 rounded-lg">
+                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-primary/75 text-white px-3 py-1 rounded-full text-sm">
+                      Align passport within frame
+                    </div>
+                    <div className="absolute top-0 left-0 w-[20px] h-[20px] border-t-2 border-l-2 border-primary"></div>
+                    <div className="absolute top-0 right-0 w-[20px] h-[20px] border-t-2 border-r-2 border-primary"></div>
+                    <div className="absolute bottom-0 left-0 w-[20px] h-[20px] border-b-2 border-l-2 border-primary"></div>
+                    <div className="absolute bottom-0 right-0 w-[20px] h-[20px] border-b-2 border-r-2 border-primary"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Capture controls */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-4">
+                <Button
+                  size="icon"
+                  onClick={captureImage}
+                  disabled={isProcessing}
+                  aria-label="Take photo"
+                  className="h-16 w-16 rounded-full shadow-lg"
+                >
+                  <Camera className="h-8 w-8" />
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Device controls */}
@@ -301,7 +327,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
               variant="outline"
               size="icon"
               onClick={toggleFlash}
-              disabled={!stream}
+              disabled={!streamRef.current}
               aria-label={flashEnabled ? "Disable flash" : "Enable flash"}
             >
               <Lightbulb className={`h-4 w-4 ${flashEnabled ? "text-yellow-500 fill-current" : ""}`} />
