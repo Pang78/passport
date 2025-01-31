@@ -44,6 +44,11 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
   const initializeCamera = useCallback(async (deviceId?: string) => {
     try {
+      const permission = await navigator.permissions.query({ name: 'camera' as PermissionName });
+      if (permission.state === 'denied') {
+        throw new Error("Camera access is blocked. Please enable it in your browser settings.");
+      }
+
       const videoDevices = await initializeDevices();
       if (videoDevices.length === 0) {
         throw new Error("No camera devices available");
@@ -71,11 +76,24 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(e => {
+            toast({
+              title: "Playback Error",
+              description: "Failed to start video stream",
+              variant: "destructive",
+            });
+          });
+        };
       }
     } catch (error: any) {
+      const message = error.name === 'NotAllowedError' 
+        ? "Camera access was denied. Please allow camera access and try again."
+        : error.message;
+      
       toast({
         title: "Camera Error",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }
