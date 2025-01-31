@@ -44,20 +44,28 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
   const initializeCamera = useCallback(async (deviceId?: string) => {
     try {
-      // First try to get direct camera access
+      // Stop any existing streams
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
+
+      // Reset video element
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+
+      // Request camera access with fallback options
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: deviceId ? { exact: deviceId } : undefined,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          facingMode: "environment"
+          width: { ideal: 1280 }, // Reduced from 1920 for better compatibility
+          height: { ideal: 720 }, // Reduced from 1080 for better compatibility
+          facingMode: deviceId ? undefined : "environment"
         }
       });
       
-      setStream(prev => {
-        prev?.getTracks().forEach(track => track.stop());
-        return stream;
-      });
+      setStream(stream);
 
       const videoDevices = await initializeDevices();
       if (videoDevices.length === 0) {
@@ -86,21 +94,31 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await new Promise((resolve) => {
-          if (videoRef.current) {
+        try {
+          await new Promise((resolve, reject) => {
+            if (!videoRef.current) return reject(new Error("Video element not found"));
+            
             videoRef.current.onloadedmetadata = () => {
               videoRef.current?.play()
                 .then(resolve)
-                .catch(e => {
-                  toast({
-                    title: "Playback Error",
-                    description: "Failed to start video stream. Please check your camera permissions.",
-                    variant: "destructive",
-                  });
-                });
+                .catch(reject);
             };
-          }
-        });
+            
+            videoRef.current.onerror = (e) => {
+              reject(new Error(`Video error: ${videoRef.current?.error?.message || 'Unknown error'}`));
+            };
+
+            // Timeout if video doesn't load
+            setTimeout(() => reject(new Error("Video stream timeout")), 10000);
+          });
+        } catch (e: any) {
+          toast({
+            title: "Camera Error",
+            description: `Failed to initialize video: ${e.message}`,
+            variant: "destructive",
+          });
+          throw e;
+        }
       }
     } catch (error: any) {
       const message = error.name === 'NotAllowedError' 
