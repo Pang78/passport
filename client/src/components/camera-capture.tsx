@@ -25,7 +25,6 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
-  // Camera initialization and device management
   const initializeDevices = useCallback(async () => {
     try {
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
@@ -43,19 +42,12 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
   }, [toast]);
 
   const initializeCamera = useCallback(async (deviceId?: string) => {
+    let newStream: MediaStream | null = null;
     try {
-      // Stop any existing streams
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      setStream(null);
 
-      // Reset video element
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-
-      // Request camera access with fallback options
       const videoDevices = await initializeDevices();
       if (videoDevices.length === 0) {
         throw new Error("No camera devices available");
@@ -67,7 +59,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
       if (!targetDevice) throw new Error("Requested device not found");
 
-      const newStream = await navigator.mediaDevices.getUserMedia({
+      newStream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: targetDevice.deviceId,
           width: { ideal: 1920 },
@@ -83,52 +75,45 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       setActiveDeviceId(targetDevice.deviceId);
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        try {
-          await new Promise((resolve, reject) => {
-            if (!videoRef.current) return reject(new Error("Video element not found"));
-            
-            videoRef.current.onloadedmetadata = () => {
-              videoRef.current?.play()
-                .then(resolve)
-                .catch(reject);
-            };
-            
-            videoRef.current.onerror = (e) => {
-              reject(new Error(`Video error: ${videoRef.current?.error?.message || 'Unknown error'}`));
-            };
+        videoRef.current.srcObject = newStream;
 
-            // Timeout if video doesn't load
-            setTimeout(() => reject(new Error("Video stream timeout")), 10000);
-          });
-        } catch (e: any) {
-          toast({
-            title: "Camera Error",
-            description: `Failed to initialize video: ${e.message}`,
-            variant: "destructive",
-          });
-          throw e;
-        }
+        await new Promise<void>((resolve, reject) => {
+          if (!videoRef.current) return reject(new Error("Video element not found"));
+
+          const onLoaded = () => {
+            videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
+            resolve();
+          };
+
+          const onError = (e: Event) => {
+            videoRef.current?.removeEventListener('error', onError);
+            reject(new Error(`Video error: ${e}`));
+          };
+
+          videoRef.current.addEventListener('loadedmetadata', onLoaded);
+          videoRef.current.addEventListener('error', onError);
+
+          setTimeout(() => {
+            reject(new Error("Video stream timed out"));
+          }, 10000);
+        });
+
+        await videoRef.current.play();
       }
     } catch (error: any) {
+      newStream?.getTracks().forEach(track => track.stop());
       const message = error.name === 'NotAllowedError' 
         ? "Camera access was denied. Please allow camera access and try again."
         : error.message;
-      
+
       toast({
         title: "Camera Error",
         description: message,
         variant: "destructive",
       });
     }
-  }, [initializeDevices, toast]);
-
-  // Device switching handler
-  const switchDevice = useCallback(async (deviceId: string) => {
-    if (deviceId === activeDeviceId) return;
-    await initializeCamera(deviceId);
-  }, [activeDeviceId, initializeCamera]);
-
+  }, [initializeDevices, stream, toast]);
+  
   // Flash control logic
   const toggleFlash = useCallback(async () => {
     if (!stream) return;
@@ -264,7 +249,7 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     return () => {
       stream?.getTracks().forEach(track => track.stop());
     };
-  }, [initializeCamera, stream]);
+  }, [initializeCamera]);
 
   return (
     <div className="space-y-4">
