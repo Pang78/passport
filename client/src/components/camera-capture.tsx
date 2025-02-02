@@ -247,9 +247,10 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       });
     } catch (error: any) {
       toast({
-        title: "Processing Error",
-        description: error.message,
+        title: "Image Quality Issue",
+        description: Array.isArray(error.message) ? error.message.join(', ') : error.message,
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setIsProcessing(false);
