@@ -1,17 +1,7 @@
-export interface ImageQualityMetrics {
-  brightness: number;
-  contrast: number;
-  sharpness: number;
-  hasGlare: boolean;
-  orientation: number;
-  needsRotation: boolean;
-}
-
 export interface PassportData {
   fullName: string | { value: string };
   dateOfBirth: string | { value: string };
   passportNumber: string | { value: string };
-  idNumber: string | { value: string };
   nationality: string | { value: string };
   dateOfIssue: string | { value: string };
   dateOfExpiry: string | { value: string };
@@ -23,7 +13,6 @@ export interface PassportData {
   };
   remarks?: string[];
   isValid?: boolean;
-  validation_errors?: string[];
   confidence_scores?: {
     fullName: number;
     dateOfBirth: number;
@@ -37,12 +26,18 @@ export interface PassportData {
   };
   overall_confidence?: number;
   extraction_notes?: string[];
-  passportPhoto?: string;
 }
 
-export interface PreviewFile {
-  file: File;
-  preview: string;
-  name: string;
+export interface ImageQualityMetrics {
+  brightness: number;
+  contrast: number;
+  sharpness: number;
+  hasGlare: boolean;
+  orientation: number;
+  needsRotation: boolean;
+}
+
+export interface PreviewFile extends File {
+  preview?: string;
   quality?: ImageQualityMetrics;
 }

@@ -85,7 +85,6 @@ export default function Home() {
       immigrationClearance: {
         ...data,
         tvGroup: "99-Unclassified",
-        tvFacility: "00",
         clearanceMode: "E-Enterprise",
         clearanceSource: "M-Manual Entry",
       },
@@ -111,7 +110,7 @@ export default function Home() {
       "Extraction Notes",
       // Immigration clearance headers
       "MOT", "Checkpoint", "Arrival/Departure Date", "Arrival/Departure Time",
-      "TV Group", "TV Facility", "Clearance Mode", "Clearance Source", "User ID", "Hostname"
+      "TV Group", "Clearance Mode", "Clearance Source", "User ID", "Hostname"
     ].join(",");
 
     const rows = passportDataList.map((data) => [
@@ -135,10 +134,9 @@ export default function Home() {
       data.immigrationClearance?.checkpoint || "",
       data.immigrationClearance?.arrivalDepartureDate || "",
       data.immigrationClearance?.arrivalDepartureTime || "",
-      "99",
-      "00",
-      "E",
-      "M",
+      data.immigrationClearance?.tvGroup || "",
+      data.immigrationClearance?.clearanceMode || "",
+      data.immigrationClearance?.clearanceSource || "",
       data.immigrationClearance?.userId || "",
       data.immigrationClearance?.hostname || ""
     ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
