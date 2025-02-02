@@ -7,7 +7,6 @@ export interface PassportData {
   dateOfExpiry: string | { value: string };
   placeOfBirth: string | { value: string };
   issuingAuthority: string | { value: string };
-  imageData?: string;
   mrz?: {
     line1: string;
     line2: string;
