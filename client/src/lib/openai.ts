@@ -73,7 +73,7 @@ export async function extractPassportData(
     });
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       response_format: { type: "json_object" },
       max_tokens: 4096,
       temperature: 0.1,
