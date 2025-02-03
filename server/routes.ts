@@ -112,7 +112,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         }
 
         const response = await openai.chat.completions.create({
-          model: "gpt-4-vision-preview",
+          model: "gpt-4o",
           messages: [
             {
               role: "system",
@@ -130,7 +130,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
               ]
             }
           ],
-          max_tokens: 500
+          max_tokens: 1000
         });
 
         if (response.choices[0].message.content) {
