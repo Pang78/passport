@@ -89,11 +89,11 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
     const fs = await import('fs/promises');
     await fs.mkdir('./exports', { recursive: true });
 
-    const pdfParse = (await import('pdf-parse')).default;
-    const extractedText = await pdfParse(buffer);
+    const pdfParse = await import('pdf-parse');
+    const extractedText = await pdfParse.default(buffer);
     
     const pdfjs = await import('pdfjs-dist');
-    const pdfDoc = await pdfjs.getDocument({ data: buffer }).promise;
+    const pdfDoc = await pdfjs.getDocument(new Uint8Array(buffer)).promise;
     const pageCount = pdfDoc.numPages;
 
     const extractedData = [];
