@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
@@ -12,19 +11,19 @@ export default defineConfig({
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   server: {
     hmr: {
-      overlay: false
-    }
+      overlay: false,
+    },
   },
   resolve: {
     alias: {
       "@db": path.resolve(__dirname, "db"),
-      "@": path.resolve(__dirname, "client/src")
-    }
+      "@": path.resolve(__dirname, "client/src"), // Alias for the src directory
+    },
   },
-  root: path.resolve(__dirname, "client"),
+  root: path.resolve(__dirname, "client"), // Root is "client"
   publicDir: path.resolve(__dirname, "client/public"),
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
-    emptyOutDir: true
-  }
+    outDir: path.resolve(__dirname, "dist/client"),
+    emptyOutDir: true,
+  },
 });
