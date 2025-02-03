@@ -7,6 +7,9 @@ import { OpenAI } from "openai";
 import crypto from "crypto";
 import { createObjectCsvWriter } from "csv-writer";
 
+// Explicitly import the legacy build
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { TextContent } from 'pdfjs-dist/types/src/display/api';
 
 const openai = new OpenAI();
 
@@ -25,6 +28,7 @@ const upload = multer({
     }
   }
 });
+
 
 // Existing image processing code
 const MAX_CACHE_SIZE = 50;
@@ -83,17 +87,14 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
   }
 }
 
-
-        async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
+async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const fs = await import('fs/promises');
     await fs.mkdir('./exports', { recursive: true });
 
-    const pdfParse = await import('pdf-parse');
-    const extractedText = await pdfParse.default(buffer);
-    
-    const pdfjs = await import('pdfjs-dist');
-    const pdfDoc = await pdfjs.getDocument(new Uint8Array(buffer)).promise;
+    // Use legacy PDF.js loading method
+    const loadingTask = pdfjsLib.getDocument(new Uint8Array(buffer));
+    const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
 
     const extractedData = [];
@@ -101,11 +102,11 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       try {
         const page = await pdfDoc.getPage(pageNum);
-        const textContent = await page.getTextContent();
+        const textContent: TextContent = await page.getTextContent();
         const pageText = textContent.items.map((item: any) => item.str).join(' ');
 
         const response = await openai.chat.completions.create({
-          model: "gpt-4",
+          model: "gpt-4o",
           messages: [
             {
               role: "system",
@@ -135,6 +136,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
     throw new Error('PDF processing error: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
 }
+
 
 export function registerRoutes(app: Express): Server {
   // Previous security headers
