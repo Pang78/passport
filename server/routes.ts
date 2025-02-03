@@ -92,7 +92,6 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
     const fs = await import('fs/promises');
     await fs.mkdir('./exports', { recursive: true });
 
-    // Use legacy PDF.js loading method
     const loadingTask = pdfjsLib.getDocument(new Uint8Array(buffer));
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
@@ -105,21 +104,47 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         const textContent: TextContent = await page.getTextContent();
         const pageText = textContent.items.map((item: any) => item.str).join(' ');
 
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "Extract passport data as JSON with fields: documentNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, sex."
-            },
-            {
-              role: "user",
-              content: pageText
-            }
-          ],
-          response_format: { type: "json_object" },
-          max_tokens: 1000
-        });
+        // Split text into potential passport sections based on common identifiers
+        const passportSections = pageText.split(/(?=passport no\.|passport number|nationality)/i);
+
+        for (const section of passportSections) {
+          if (section.trim().length < 50) continue; // Skip too short sections
+
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: `Extract passport data as structured JSON. Requirements:
+- Ensure all dates are in YYYY-MM-DD format
+- Return consistent object structure with all fields
+- Format names in proper case
+- MRZ lines must be 44 characters (or 36 for TD3)
+
+Required fields:
+{
+  "fullName": "string (surname, given names)",
+  "dateOfBirth": "YYYY-MM-DD",
+  "passportNumber": "string",
+  "nationality": "ISO 3-letter code",
+  "dateOfIssue": "YYYY-MM-DD",
+  "dateOfExpiry": "YYYY-MM-DD",
+  "placeOfBirth": "string",
+  "issuingAuthority": "string",
+  "mrz": {
+    "line1": "string (44 chars)",
+    "line2": "string (44 chars)"
+  }
+}`
+              },
+              {
+                role: "user",
+                content: section
+              }
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 1000
+          });
 
         const content = response.choices[0].message.content;
         if (content) {

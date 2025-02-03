@@ -262,12 +262,7 @@ export default function Home() {
                                 }
 
                                 handleDataExtracted(result.data.map((item: any) => ({
-                                  fullName: `${item.surname}, ${item.givenNames}`,
-                                  passportNumber: item.documentNumber,
-                                  nationality: item.nationality,
-                                  dateOfBirth: item.dateOfBirth,
-                                  dateOfExpiry: item.dateOfExpiry,
-                                  sex: item.sex,
+                                  ...item,
                                   isValid: true,
                                   overall_confidence: 0.95
                                 })));
