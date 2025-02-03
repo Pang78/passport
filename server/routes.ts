@@ -88,7 +88,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 }
 
 // Configure PDF.js with proper worker and font paths
-const FONT_PATH = path.join(process.cwd(), 'node_modules/pdfjs-dist/standard_fonts');
+const FONT_PATH = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/standard_fonts');
 pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
 
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
@@ -97,11 +97,12 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      useSystemFonts: true,
+      useSystemFonts: false, // Changed to false to use embedded fonts
       standardFontDataUrl: FONT_PATH,
       cMapUrl: FONT_PATH,
       cMapPacked: true,
-      verbosity: 1
+      verbosity: 1,
+      disableFontFace: false // Enable font loading
     });
 
     const pdfDoc = await loadingTask.promise;
@@ -112,13 +113,14 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
       try {
         console.log(`Processing page ${pageNum}`);
         const page = await pdfDoc.getPage(pageNum);
-        const scale = 1.5;
+        const scale = 2.0; // Increased scale for better text extraction
         const viewport = page.getViewport({ scale });
 
-        const [textContent, operatorList] = await Promise.all([
-          page.getTextContent(),
-          page.getOperatorList()
-        ]);
+        // Get text content with enhanced parameters
+        const textContent = await page.getTextContent({
+          normalizeWhitespace: true,
+          disableCombineTextItems: false
+        });
 
         // Enhanced text extraction with better structure preservation
         const textItems = textContent.items
@@ -126,7 +128,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
           .map((item: any) => ({
             text: item.str.trim(),
             x: Math.round(item.transform[4]),
-            y: Math.round(item.transform[5]),
+            y: Math.round(viewport.height - item.transform[5]), // Adjust Y coordinate
             width: item.width,
             height: item.height,
             fontSize: Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
@@ -135,8 +137,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
 
         // Group text items by vertical position with dynamic threshold
         const lineGroups: { [key: string]: any[] } = {};
-        let lastY = 0;
-        const lineThreshold = 5; // Adjust based on your PDF structure
+        const lineThreshold = Math.max(5, textItems[0]?.fontSize / 2 || 5); // Dynamic threshold based on font size
 
         textItems.forEach(item => {
           const nearestLine = Object.keys(lineGroups).find(
@@ -159,59 +160,66 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
           )
           .join('\n');
 
-        // Split into logical passport sections
-        const passportSections = pageText.split(/(?=(?:\b|^)(?:passport\s+(?:no|number)|nationality|surname|given\s+names?|date\s+of\s+birth)\b)/i);
+        // Enhanced passport section detection
+        const sections = pageText.split(/(?=(?:\b|^)(?:passport\s+(?:no|number)|nationality|surname|given\s+names?|date\s+of\s+birth|personal\s+no|identity\s+(?:no|number))\b)/i);
 
-        for (const section of passportSections) {
-          if (section.trim().length < 50 || !section.match(/(?:passport|nationality|surname|birth)/i)) {
-            continue;
-          }
+        for (const section of sections) {
+          if (section.trim().length < 30) continue;
 
-          const response = await openai.chat.completions.create({
-            model: "gpt-4",
-            messages: [
-              {
-                role: "system",
-                content: `Extract passport data as structured JSON. Requirements:
-                - Ensure all dates are in YYYY-MM-DD format
-                - Return consistent object structure with all fields
-                - Format names in proper case
-                - MRZ lines must be 44 characters (or 36 for TD3)
-
-                Required fields:
+          try {
+            const response = await openai.chat.completions.create({
+              model: "gpt-4",
+              messages: [
                 {
-                  "fullName": "string (surname, given names)",
-                  "dateOfBirth": "YYYY-MM-DD",
-                  "passportNumber": "string",
-                  "nationality": "ISO 3-letter code",
-                  "dateOfIssue": "YYYY-MM-DD",
-                  "dateOfExpiry": "YYYY-MM-DD",
-                  "placeOfBirth": "string",
-                  "issuingAuthority": "string",
-                  "mrz": {
-                    "line1": "string (44 chars)",
-                    "line2": "string (44 chars)"
-                  }
-                }`
-              },
-              {
-                role: "user",
-                content: section
-              }
-            ],
-            response_format: { type: "json_object" },
-            max_tokens: 1000
-          });
+                  role: "system",
+                  content: `Extract passport data as structured JSON. Requirements:
+                  - Ensure all dates are in YYYY-MM-DD format
+                  - Return consistent object structure with all fields
+                  - Format names in proper case
+                  - MRZ lines must be 44 characters (or 36 for TD3)
 
-          if (response.choices[0].message.content) {
-            try {
-              const parsedData = JSON.parse(response.choices[0].message.content);
-              console.log('Successfully extracted passport data:', parsedData.passportNumber);
-              extractedData.push(parsedData);
-            } catch (parseError) {
-              console.error('Failed to parse AI response:', parseError);
-              continue;
+                  Required fields:
+                  {
+                    "fullName": "string (surname, given names)",
+                    "dateOfBirth": "YYYY-MM-DD",
+                    "passportNumber": "string",
+                    "nationality": "ISO 3-letter code",
+                    "dateOfIssue": "YYYY-MM-DD",
+                    "dateOfExpiry": "YYYY-MM-DD",
+                    "placeOfBirth": "string",
+                    "issuingAuthority": "string",
+                    "sex": "string",
+                    "mrz": {
+                      "line1": "string (44 chars)",
+                      "line2": "string (44 chars)"
+                    }
+                  }`
+                },
+                {
+                  role: "user",
+                  content: section
+                }
+              ],
+              response_format: { type: "json_object" },
+              max_tokens: 1000,
+              temperature: 0.3 // Lower temperature for more consistent extraction
+            });
+
+            if (response.choices[0].message.content) {
+              try {
+                const parsedData = JSON.parse(response.choices[0].message.content);
+                if (parsedData.passportNumber) {
+                  console.log('Successfully extracted passport data:', parsedData.passportNumber);
+                  extractedData.push(parsedData);
+                }
+              } catch (parseError) {
+                console.error('Failed to parse AI response:', parseError);
+                continue;
+              }
             }
+          } catch (aiError) {
+            console.error('AI processing error:', aiError);
+            continue;
           }
         }
       } catch (pageError) {
