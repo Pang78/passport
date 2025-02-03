@@ -91,21 +91,22 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
     const pdfParse = (await import('pdf-parse')).default;
     const pdfData = await pdfParse(buffer);
     
-    const { Convert } = await import('pdf2pic');
-    const converter = new Convert({
+    const fromPath = await import('pdf2pic');
+    const options = {
       density: 300,
       format: "png",
       width: 2000,
       height: 2000,
       saveFilename: "temp",
       savePath: "./exports"
-    });
+    };
+    const converter = fromPath.fromBuffer(buffer, options);
 
     const extractedData = [];
 
     for (let pageNum = 1; pageNum <= pdfData.numpages; pageNum++) {
       try {
-        const result = await converter.convertBuffer(buffer, pageNum);
+        const result = await converter(pageNum);
         if (!result || !result.base64) {
           console.error(`Failed to convert page ${pageNum}`);
           continue;
