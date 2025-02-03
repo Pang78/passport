@@ -51,7 +51,10 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
+    app.use(express.static(path.resolve(__dirname, "../dist/public")));
+    app.get("*", (_req, res) => {
+      res.sendFile(path.resolve(__dirname, "../dist/public/index.html"));
+    });
   } else {
     await setupVite(app, server);
   }
