@@ -101,9 +101,9 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
     for (let pageNum = 1; pageNum <= pdfData.numpages; pageNum++) {
       const pageImage = await converter.bufferToBuffer(buffer, pageNum);
 
-      // Use GPT-4-Vision for each page
+      // Use GPT-4o for each page
       const response = await openai.chat.completions.create({
-        model: "gpt-4-vision-preview",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -202,7 +202,7 @@ export function registerRoutes(app: Express): Server {
         .toBuffer();
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4-vision-preview",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
