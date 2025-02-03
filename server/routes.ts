@@ -96,7 +96,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
 
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      standardFontDataUrl: 'client/public/standard_fonts/' // Set the correct path here
+      standardFontDataUrl: './client/public/standard_fonts/'
     });
     
     const pdfDoc = await loadingTask.promise;
