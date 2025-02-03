@@ -85,6 +85,10 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
+    // Create exports directory if it doesn't exist
+    const fs = await import('fs/promises');
+    await fs.mkdir('./exports', { recursive: true });
+    
     // Import pdf-parse dynamically to avoid initialization errors
     const pdfParse = (await import('pdf-parse')).default;
     const pdfData = await pdfParse(buffer);
