@@ -56,6 +56,14 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   }
 
+  // Error handling middleware
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error(err);
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+  });
+
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client
   const PORT = 5000;
