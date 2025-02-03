@@ -88,15 +88,19 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 }
 
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
+  const extractedData = [];
+
   try {
     const fs = await import('fs/promises');
     await fs.mkdir('./exports', { recursive: true });
 
-    const loadingTask = pdfjsLib.getDocument(new Uint8Array(buffer));
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      standardFontDataUrl: 'client/public/standard_fonts/' // Set the correct path here
+    });
+    
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
-
-    const extractedData = [];
 
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       try {
@@ -104,7 +108,6 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         const textContent: TextContent = await page.getTextContent();
         const pageText = textContent.items.map((item: any) => item.str).join(' ');
 
-        // Split text into potential passport sections based on common identifiers
         const passportSections = pageText.split(/(?=passport no\.|passport number|nationality)/i);
 
         for (const section of passportSections) {
@@ -116,26 +119,26 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
               {
                 role: "system",
                 content: `Extract passport data as structured JSON. Requirements:
-- Ensure all dates are in YYYY-MM-DD format
-- Return consistent object structure with all fields
-- Format names in proper case
-- MRZ lines must be 44 characters (or 36 for TD3)
+                - Ensure all dates are in YYYY-MM-DD format
+                - Return consistent object structure with all fields
+                - Format names in proper case
+                - MRZ lines must be 44 characters (or 36 for TD3)
 
-Required fields:
-{
-  "fullName": "string (surname, given names)",
-  "dateOfBirth": "YYYY-MM-DD",
-  "passportNumber": "string",
-  "nationality": "ISO 3-letter code",
-  "dateOfIssue": "YYYY-MM-DD",
-  "dateOfExpiry": "YYYY-MM-DD",
-  "placeOfBirth": "string",
-  "issuingAuthority": "string",
-  "mrz": {
-    "line1": "string (44 chars)",
-    "line2": "string (44 chars)"
-  }
-}`
+                Required fields:
+                {
+                  "fullName": "string (surname, given names)",
+                  "dateOfBirth": "YYYY-MM-DD",
+                  "passportNumber": "string",
+                  "nationality": "ISO 3-letter code",
+                  "dateOfIssue": "YYYY-MM-DD",
+                  "dateOfExpiry": "YYYY-MM-DD",
+                  "placeOfBirth": "string",
+                  "issuingAuthority": "string",
+                  "mrz": {
+                    "line1": "string (44 chars)",
+                    "line2": "string (44 chars)"
+                  }
+                }`
               },
               {
                 role: "user",
@@ -146,22 +149,22 @@ Required fields:
             max_tokens: 1000
           });
 
-        const content = response.choices[0].message.content;
-        if (content) {
-          extractedData.push(JSON.parse(content));
+          const content = response.choices[0].message.content;
+          if (content) {
+            extractedData.push(JSON.parse(content));
+          }
         }
       } catch (pageError) {
         console.error(`Page ${pageNum} processing failed:`, pageError);
       }
     }
-
-    return extractedData;
   } catch (error) {
     console.error('PDF processing failed:', error);
     throw new Error('PDF processing error: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
-}
 
+  return extractedData;
+}
 
 export function registerRoutes(app: Express): Server {
   // Previous security headers
