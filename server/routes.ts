@@ -92,43 +92,25 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const fs = await import('fs/promises');
-    const path = await import('path');
     await fs.mkdir('./exports', { recursive: true });
 
-    // Use 'pdfjs-dist' to read directly from the buffer
+    const pdfParse = await import('pdf-parse');
+    const extractedText = await pdfParse.default(buffer);
+    
     const pdfjs = await import('pdfjs-dist');
     const pdfDoc = await pdfjs.getDocument({ data: buffer }).promise;
     const pageCount = pdfDoc.numPages;
-
-    const pdf2picModule = await import('pdf2pic');
-    const { fromBuffer } = pdf2picModule.default || pdf2picModule;
-
-    const converter = fromBuffer(buffer, {
-      density: 300,
-      format: "png",
-      width: 2000,
-      height: 2000,
-      savePath: "./exports",
-      saveFilename: `temp_${Date.now()}`,
-      preserveAspectRatio: true
-    });
 
     const extractedData = [];
 
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       try {
-        const result = await converter(pageNum, { 
-          responseType: "base64",
-          compression: "none"
-        });
-
-        if (!result?.base64) {
-          console.error(`Skipping page ${pageNum} - conversion failed`);
-          continue;
-        }
+        const page = await pdfDoc.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
 
         const response = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-4",
           messages: [
             {
               role: "system",
@@ -136,9 +118,10 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
             },
             {
               role: "user",
-              content: [{ type: "image_url", image_url: { url: `data:image/png;base64,${result.base64}` }}]
+              content: pageText
             }
           ],
+          response_format: { type: "json_object" },
           max_tokens: 1000
         });
 
