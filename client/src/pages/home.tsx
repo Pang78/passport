@@ -60,7 +60,6 @@ export type PassportData = {
   extraction_notes?: string[];
   passportPhoto?: string;
   immigrationClearance?: ImmigrationClearanceData;
-  imageData?: string; // Added imageData field
 };
 
 export default function Home() {
@@ -159,7 +158,6 @@ export default function Home() {
       const { isValid, remarks } = validatePassportData(passport);
       return {
         ...passport,
-        imageData: passport.imageData,
         isValid,
         remarks: [
           ...(remarks || []),
@@ -170,15 +168,9 @@ export default function Home() {
         ],
       };
     });
-    setPassportDataList(validatedData);
-  };
 
-  const handlePassportUpdate = (updatedPassport: PassportData) => {
-    setPassportDataList(prev =>
-      prev.map(passport =>
-        passport.passportNumber === updatedPassport.passportNumber ? updatedPassport : passport
-      )
-    );
+    setTempPassportData(validatedData);
+    setShowImmigrationModal(true);
   };
 
   return (
