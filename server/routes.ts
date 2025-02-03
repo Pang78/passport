@@ -91,16 +91,14 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
     const pdfParse = (await import('pdf-parse')).default;
     const pdfData = await pdfParse(buffer);
     
-    const fromPath = await import('pdf2pic');
-    const options = {
+    const pdf2pic = await import('pdf2pic');
+    const converter = new pdf2pic.FromBuffer({
       density: 300,
       format: "png",
       width: 2000,
       height: 2000,
-      saveFilename: "temp",
       savePath: "./exports"
-    };
-    const converter = fromPath.fromBuffer(buffer, options);
+    });
 
     const extractedData = [];
 
