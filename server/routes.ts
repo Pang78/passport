@@ -96,10 +96,11 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
 
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      standardFontDataUrl: './client/public/standard_fonts/',
-      cMapUrl: './client/public/standard_fonts/',
+      useSystemFonts: true,
+      standardFontDataUrl: 'standard_fonts/',
+      cMapUrl: 'standard_fonts/',
       cMapPacked: true,
-      disableFontFace: true
+      verbosity: 0
     });
     
     const pdfDoc = await loadingTask.promise;
@@ -118,13 +119,17 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         ]);
 
         // Improved text extraction
-        const textItems = textContent.items.map((item: any) => ({
-          text: item.str,
-          x: item.transform[4],
-          y: item.transform[5],
-          width: item.width,
-          height: item.height
-        }));
+        const textItems = textContent.items
+          .filter((item: any) => item.str.trim().length > 0)
+          .map((item: any) => ({
+            text: item.str.trim(),
+            x: Math.round(item.transform[4]),
+            y: Math.round(item.transform[5]),
+            width: item.width,
+            height: item.height,
+            fontSize: Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
+          }))
+          .sort((a, b) => b.fontSize - a.fontSize);
 
         // Group text by vertical position (within 10 units) to handle multiple columns
         const lineGroups: {[key: string]: any[]} = {};
