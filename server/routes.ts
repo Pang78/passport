@@ -5,26 +5,28 @@ import { extractPassportData } from "../client/src/lib/openai";
 import sharp from "sharp";
 import { OpenAI } from "openai";
 import crypto from "crypto";
+import { createObjectCsvWriter } from "csv-writer";
+import pdf2pic from "pdf2pic";
 
 const openai = new OpenAI();
 
-// Configure multer with safe limits
+// Configure multer for both image and PDF uploads
 const upload = multer({
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 1
   },
   fileFilter: (_, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only JPEG, PNG and WebP images are allowed'));
+      cb(new Error('Only JPEG, PNG, WebP images and PDF files are allowed'));
     }
   }
 });
 
-// Optimized image processing with LRU cache
+// Existing image processing code
 const MAX_CACHE_SIZE = 50;
 const imageCache = new Map<string, { processed: Buffer; metadata: sharp.Metadata }>();
 
@@ -81,8 +83,62 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
   }
 }
 
+async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
+  try {
+    // Import pdf-parse dynamically to avoid initialization errors
+    const pdfParse = (await import('pdf-parse')).default;
+    const pdfData = await pdfParse(buffer);
+    const converter = new pdf2pic.default({
+      density: 300,
+      format: "png",
+      width: 2000,
+      height: 2000
+    });
+
+    const extractedData = [];
+
+    // Process each page
+    for (let pageNum = 1; pageNum <= pdfData.numpages; pageNum++) {
+      const pageImage = await converter.bufferToBuffer(buffer, pageNum);
+
+      // Use GPT-4-Vision for each page
+      const response = await openai.chat.completions.create({
+        model: "gpt-4-vision-preview",
+        messages: [
+          {
+            role: "system",
+            content: "Extract passport information from this image. Return a JSON object with fields: documentNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, sex."
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${pageImage.toString("base64")}`
+                }
+              }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 500
+      });
+
+      if (response.choices[0].message.content) {
+        extractedData.push(JSON.parse(response.choices[0].message.content));
+      }
+    }
+
+    return extractedData;
+  } catch (error) {
+    console.error('PDF processing error:', error);
+    throw new Error('Failed to process PDF document');
+  }
+}
+
 export function registerRoutes(app: Express): Server {
-  // Security headers
+  // Previous security headers
   app.use((_, res, next) => {
     res.header('Content-Type', 'application/json; charset=utf-8');
     res.header('X-Content-Type-Options', 'nosniff');
@@ -91,6 +147,7 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
+  // Existing routes
   app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
     try {
       if (!req.file) {
@@ -192,6 +249,47 @@ Respond with JSON: { isValid: boolean, issues: string[] }. Provide specific, use
         details: error.message.includes("rate limit") 
           ? "Service is temporarily busy, please try again in a few moments"
           : "Internal processing error"
+      });
+    }
+  });
+
+  // New route for PDF processing
+  app.post("/api/extract-pdf-passport", upload.single("pdf"), async (req, res) => {
+    try {
+      if (!req.file || req.file.mimetype !== 'application/pdf') {
+        return res.status(400).json({ error: "Valid PDF file required" });
+      }
+
+      const extractedData = await processPdfPassport(req.file.buffer);
+
+      // Generate CSV
+      const csvWriter = createObjectCsvWriter({
+        path: './exports/passport_data.csv',
+        header: [
+          {id: 'documentNumber', title: 'Document Number'},
+          {id: 'surname', title: 'Surname'},
+          {id: 'givenNames', title: 'Given Names'},
+          {id: 'dateOfBirth', title: 'Date of Birth'},
+          {id: 'dateOfExpiry', title: 'Date of Expiry'},
+          {id: 'nationality', title: 'Nationality'},
+          {id: 'sex', title: 'Sex'}
+        ]
+      });
+
+      await csvWriter.writeRecords(extractedData);
+
+      res.json({
+        success: true,
+        count: extractedData.length,
+        data: extractedData,
+        csvPath: '/exports/passport_data.csv'
+      });
+
+    } catch (error: any) {
+      console.error('PDF extraction error:', error);
+      res.status(500).json({ 
+        error: "PDF processing failed",
+        details: error.message.slice(0, 100)
       });
     }
   });

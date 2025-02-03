@@ -3,6 +3,7 @@ import PassportUpload from "@/components/passport-upload";
 import CameraCapture from "@/components/camera-capture";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import ImmigrationClearanceModal from "@/components/immigration-clearance-modal";
 import {
   Table,
@@ -12,9 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Upload, Camera } from "lucide-react";
+import { Download, Upload, Camera, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { validatePassportData } from "@/lib/validation";
+
 
 export type ImmigrationClearanceData = {
   mot: string;
@@ -60,6 +62,7 @@ export type PassportData = {
   extraction_notes?: string[];
   passportPhoto?: string;
   immigrationClearance?: ImmigrationClearanceData;
+  sex?: string;
 };
 
 export default function Home() {
@@ -72,6 +75,8 @@ export default function Home() {
   const [showImmigrationModal, setShowImmigrationModal] = useState(false);
   const [immigrationData, setImmigrationData] = useState<ImmigrationClearanceData | null>(null);
   const [tempPassportData, setTempPassportData] = useState<PassportData[]>([]);
+    const { toast } = useToast();
+
 
   useEffect(() => {
     localStorage.setItem('passportData', JSON.stringify(passportDataList));
@@ -205,10 +210,14 @@ export default function Home() {
                   Choose how you want to capture passport data. Use your device's camera for instant capture or upload existing images.
                 </p>
                 <Tabs defaultValue="upload" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsList className="grid w-full grid-cols-3 mb-6">
                     <TabsTrigger value="upload" className="gap-2">
                       <Upload className="h-4 w-4" />
-                      Upload Files
+                      Upload Images
+                    </TabsTrigger>
+                    <TabsTrigger value="pdf" className="gap-2">
+                      <FileText className="h-4 w-4" />
+                      Upload PDF
                     </TabsTrigger>
                     <TabsTrigger value="camera" className="gap-2">
                       <Camera className="h-4 w-4" />
@@ -217,6 +226,65 @@ export default function Home() {
                   </TabsList>
                   <TabsContent value="upload">
                     <PassportUpload onDataExtracted={handleDataExtracted} />
+                  </TabsContent>
+                  <TabsContent value="pdf">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-center w-full">
+                        <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-10 h-10 mb-3 text-gray-400" />
+                            <p className="mb-2 text-sm text-gray-500">
+                              <span className="font-semibold">Click to upload</span> or drag and drop
+                            </p>
+                            <p className="text-xs text-gray-500">PDF files (MAX. 10MB)</p>
+                          </div>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            accept=".pdf"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+
+                              const formData = new FormData();
+                              formData.append('pdf', file);
+
+                              try {
+                                const response = await fetch('/api/extract-pdf-passport', {
+                                  method: 'POST',
+                                  body: formData,
+                                });
+
+                                const result = await response.json();
+
+                                if (!response.ok) {
+                                  throw new Error(result.error || 'Failed to process PDF');
+                                }
+
+                                handleDataExtracted(result.data.map((item: any) => ({
+                                  fullName: `${item.surname}, ${item.givenNames}`,
+                                  passportNumber: item.documentNumber,
+                                  nationality: item.nationality,
+                                  dateOfBirth: item.dateOfBirth,
+                                  dateOfExpiry: item.dateOfExpiry,
+                                  sex: item.sex,
+                                  isValid: true,
+                                  overall_confidence: 0.95
+                                })));
+                              } catch (error) {
+                                console.error('PDF processing error:', error);
+                                // Add toast notification for error
+                                toast({
+                                  title: "Error",
+                                  description: error.message || "Failed to process PDF",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
                   </TabsContent>
                   <TabsContent value="camera">
                     <CameraCapture onImageCaptured={handleDataExtracted} />
