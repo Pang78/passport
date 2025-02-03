@@ -11,24 +11,26 @@ const openai = new OpenAI();
 // Configure multer with safe limits
 const upload = multer({
   limits: {
-    fileSize: 5 * 1024 * 1024, // Reduce to 5MB for safety
-    files: 1 // Only allow single file upload
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 1
   },
   fileFilter: (_, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error('Only JPEG, PNG and WebP images are allowed'));
     }
   }
 });
 
-// Optimized image processing pipeline
+// Optimized image processing with LRU cache
+const MAX_CACHE_SIZE = 50;
 const imageCache = new Map<string, { processed: Buffer; metadata: sharp.Metadata }>();
 
 async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; metadata: sharp.Metadata }> {
   const hash = crypto.createHash('md5').update(buffer).digest('hex');
-  
+
   if (imageCache.has(hash)) {
     return imageCache.get(hash)!;
   }
@@ -37,11 +39,15 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
     const pipeline = sharp(buffer, { 
       limitInputPixels: 25_000_000,
       sequentialRead: true,
-      cache: false
-    });
+    }).rotate();
 
     const metadata = await pipeline.metadata();
-    
+
+    if (!metadata.width || !metadata.height || 
+        metadata.width > 5000 || metadata.height > 5000) {
+      throw new Error('Invalid image dimensions');
+    }
+
     const result = {
       processed: await pipeline
         .resize(800, 800, { 
@@ -50,7 +56,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
           kernel: sharp.kernel.lanczos2
         })
         .jpeg({ 
-          quality: 60,
+          quality: 75,
           progressive: true,
           mozjpeg: true,
           optimizeScans: true
@@ -59,43 +65,48 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
       metadata
     };
 
-    imageCache.set(hash, result);
-    
-    // Limit cache size
-    if (imageCache.size > 100) {
-      const firstKey = imageCache.keys().next().value;
-      imageCache.delete(firstKey);
+    // Implement LRU cache
+    if (imageCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = Array.from(imageCache.keys())[0];
+      if (firstKey) imageCache.delete(firstKey);
     }
+    imageCache.set(hash, result);
 
     return result;
+  } catch (error) {
+    throw new Error(`Image processing failed: ${(error as Error).message}`);
   } finally {
+    // Clear the input buffer
     buffer = Buffer.alloc(0);
   }
 }
 
 export function registerRoutes(app: Express): Server {
-  // Add safety headers
+  // Security headers
   app.use((_, res, next) => {
     res.header('Content-Type', 'application/json; charset=utf-8');
     res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'DENY');
+    res.header('X-XSS-Protection', '1; mode=block');
     next();
   });
 
   app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
     try {
-      if (!req.file) return res.status(400).json({ error: "No image provided" });
+      if (!req.file) {
+        return res.status(400).json({ error: "No image provided" });
+      }
 
-      // Process with memory safety
       const { processed, metadata } = await safeProcessImage(req.file.buffer);
 
-      if (processed.length > 2 * 1024 * 1024) { // 2MB final check
+      if (processed.length > 2 * 1024 * 1024) {
         return res.status(413).json({ error: "Image too large after processing" });
       }
 
-      // Use thumbnail for response
+      // Generate optimized thumbnail
       const thumbnail = await sharp(processed)
-        .resize(300, 300)
-        .jpeg({ quality: 50 })
+        .resize(300, 300, { fit: 'inside' })
+        .jpeg({ quality: 60 })
         .toBuffer();
 
       const passportData = await extractPassportData(processed.toString("base64"));
@@ -104,34 +115,37 @@ export function registerRoutes(app: Express): Server {
         ...passportData,
         metadata: {
           dimensions: { 
-            width: metadata.width, 
-            height: metadata.height 
+            width: metadata.width ?? 0, 
+            height: metadata.height ?? 0
           },
+          format: metadata.format,
           size: processed.length
         },
         thumbnail: `data:image/jpeg;base64,${thumbnail.toString("base64")}`
       });
 
     } catch (error: any) {
+      console.error('Passport extraction error:', error);
       res.status(500).json({ 
         error: "Processing failed",
-        details: error.message.slice(0, 100) // Limit error exposure
+        details: error.message.slice(0, 100)
       });
     }
   });
 
   app.post("/api/check-quality", upload.single("image"), async (req, res) => {
     try {
-      if (!req.file) return res.status(400).json({ error: "No image provided" });
+      if (!req.file) {
+        return res.status(400).json({ error: "No image provided" });
+      }
 
-      // Create optimized preview for AI analysis
       const preview = await sharp(req.file.buffer)
-        .resize(800, 800)
-        .jpeg({ quality: 60 })
+        .resize(800, 800, { fit: 'inside' })
+        .jpeg({ quality: 75 })
         .toBuffer();
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4-vision-preview",
         messages: [
           {
             role: "system",
@@ -165,16 +179,19 @@ Respond with JSON: { isValid: boolean, issues: string[] }. Provide specific, use
       });
 
       const content = response.choices[0].message.content;
-      if (!content) throw new Error("Empty AI response");
+      if (!content) {
+        throw new Error("Empty AI response");
+      }
 
       res.json(JSON.parse(content));
 
     } catch (error: any) {
-      res.status(500).json({
+      console.error('Quality check error:', error);
+      res.status(error.status || 500).json({
         error: "Quality check failed",
         details: error.message.includes("rate limit") 
-          ? "Server busy, please try again later"
-          : "Internal error"
+          ? "Service is temporarily busy, please try again in a few moments"
+          : "Internal processing error"
       });
     }
   });
