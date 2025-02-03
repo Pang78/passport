@@ -85,53 +85,77 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
-    // Create exports directory if it doesn't exist
     const fs = await import('fs/promises');
     await fs.mkdir('./exports', { recursive: true });
     
-    // Import pdf-parse dynamically to avoid initialization errors
     const pdfParse = (await import('pdf-parse')).default;
     const pdfData = await pdfParse(buffer);
-    const converter = new pdf2pic.default({
+    
+    const { Convert } = await import('pdf2pic');
+    const converter = new Convert({
       density: 300,
       format: "png",
       width: 2000,
-      height: 2000
+      height: 2000,
+      saveFilename: "temp",
+      savePath: "./exports"
     });
 
     const extractedData = [];
 
-    // Process each page
     for (let pageNum = 1; pageNum <= pdfData.numpages; pageNum++) {
-      const pageImage = await converter.bufferToBuffer(buffer, pageNum);
+      try {
+        const result = await converter.convertBuffer(buffer, pageNum);
+        if (!result || !result.base64) {
+          console.error(`Failed to convert page ${pageNum}`);
+          continue;
+        }
 
-      // Use GPT-4o for each page
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "Extract passport information from this image. Return a JSON object with fields: documentNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, sex."
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:image/png;base64,${pageImage.toString("base64")}`
+        const response = await openai.chat.completions.create({
+          model: "gpt-4-vision-preview",
+          messages: [
+            {
+              role: "system",
+              content: "Extract passport information from this image. Return a JSON object with fields: documentNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, sex."
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:image/png;base64,${result.base64}`
+                  }
                 }
-              }
-            ]
-          }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 500
-      });
+              ]
+            }
+          ],
+          max_tokens: 500
+        });
 
-      if (response.choices[0].message.content) {
-        extractedData.push(JSON.parse(response.choices[0].message.content));
+        if (response.choices[0].message.content) {
+          try {
+            const parsedData = JSON.parse(response.choices[0].message.content);
+            extractedData.push(parsedData);
+          } catch (parseError) {
+            console.error('Failed to parse OpenAI response:', parseError);
+          }
+        }
+      } catch (pageError) {
+        console.error(`Error processing page ${pageNum}:`, pageError);
       }
+    }
+
+    // Cleanup temp files
+    try {
+      const files = await fs.readdir('./exports');
+      await Promise.all(
+        files
+          .filter(f => f.startsWith('temp'))
+          .map(f => fs.unlink(`./exports/${f}`))
+      );
+    } catch (cleanupError) {
+      console.error('Cleanup error:', cleanupError);
     }
 
     return extractedData;
