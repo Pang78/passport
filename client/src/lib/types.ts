@@ -2,6 +2,7 @@ export interface PassportData {
   fullName: string | { value: string };
   dateOfBirth: string | { value: string };
   passportNumber: string | { value: string };
+  idNumber?: string | { value: string };
   nationality: string | { value: string };
   dateOfIssue: string | { value: string };
   dateOfExpiry: string | { value: string };
@@ -26,6 +27,19 @@ export interface PassportData {
   };
   overall_confidence?: number;
   extraction_notes?: string[];
+  passportPhoto?: string;
+  sex?: string;
+  immigrationClearance?: {
+    mot: string;
+    checkpoint: string;
+    arrivalDepartureDate: string;
+    arrivalDepartureTime: string;
+    tvGroup: string;
+    clearanceMode: string;
+    clearanceSource: string;
+    userId: string;
+    hostname: string;
+  };
 }
 
 export interface ImageQualityMetrics {

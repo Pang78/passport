@@ -6,7 +6,7 @@ import sharp from "sharp";
 import { OpenAI } from "openai";
 import crypto from "crypto";
 import { createObjectCsvWriter } from "csv-writer";
-
+import path from 'path';
 // Explicitly import the legacy build
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { TextContent } from 'pdfjs-dist/types/src/display/api';
@@ -87,38 +87,40 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
   }
 }
 
+// Configure PDF.js with proper worker and font paths
+const FONT_PATH = path.join(process.cwd(), 'node_modules/pdfjs-dist/standard_fonts');
+pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
+
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   const extractedData = [];
 
   try {
-    const fs = await import('fs/promises');
-    await fs.mkdir('./exports', { recursive: true });
-
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
       useSystemFonts: true,
-      standardFontDataUrl: 'standard_fonts/',
-      cMapUrl: 'standard_fonts/',
+      standardFontDataUrl: FONT_PATH,
+      cMapUrl: FONT_PATH,
       cMapPacked: true,
-      verbosity: 0
+      verbosity: 1
     });
-    
+
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
+    console.log(`Processing PDF with ${pageCount} pages`);
 
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       try {
+        console.log(`Processing page ${pageNum}`);
         const page = await pdfDoc.getPage(pageNum);
         const scale = 1.5;
         const viewport = page.getViewport({ scale });
-        
-        // Get both text content and operatorList for better extraction
+
         const [textContent, operatorList] = await Promise.all([
           page.getTextContent(),
           page.getOperatorList()
         ]);
 
-        // Improved text extraction
+        // Enhanced text extraction with better structure preservation
         const textItems = textContent.items
           .filter((item: any) => item.str.trim().length > 0)
           .map((item: any) => ({
@@ -129,37 +131,48 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
             height: item.height,
             fontSize: Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
           }))
-          .sort((a, b) => b.fontSize - a.fontSize);
+          .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        // Group text by vertical position (within 10 units) to handle multiple columns
-        const lineGroups: {[key: string]: any[]} = {};
+        // Group text items by vertical position with dynamic threshold
+        const lineGroups: { [key: string]: any[] } = {};
+        let lastY = 0;
+        const lineThreshold = 5; // Adjust based on your PDF structure
+
         textItems.forEach(item => {
-          const yKey = Math.round(item.y / 10) * 10;
-          if (!lineGroups[yKey]) lineGroups[yKey] = [];
-          lineGroups[yKey].push(item);
+          const nearestLine = Object.keys(lineGroups).find(
+            y => Math.abs(Number(y) - item.y) < lineThreshold
+          );
+
+          if (nearestLine) {
+            lineGroups[nearestLine].push(item);
+          } else {
+            lineGroups[item.y] = [item];
+          }
         });
 
-        // Sort each group by x position and combine
+        // Combine lines into structured text
         const pageText = Object.values(lineGroups)
-          .map(group => group.sort((a, b) => a.x - b.x).map(item => item.text).join(' '))
+          .map(group => group
+            .sort((a, b) => a.x - b.x)
+            .map(item => item.text)
+            .join(' ')
+          )
           .join('\n');
 
-        // Split into sections more accurately using multiple identifiers
+        // Split into logical passport sections
         const passportSections = pageText.split(/(?=(?:\b|^)(?:passport\s+(?:no|number)|nationality|surname|given\s+names?|date\s+of\s+birth)\b)/i);
 
         for (const section of passportSections) {
-          // More thorough section validation
-          if (section.trim().length < 50 || 
-              !section.match(/(?:passport|nationality|surname|birth)/i)) {
+          if (section.trim().length < 50 || !section.match(/(?:passport|nationality|surname|birth)/i)) {
             continue;
           }
 
           const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4",
             messages: [
               {
                 role: "system",
-                content: `Extract passport data as structured JSON. You are processing a PDF section that may contain multiple passports. Requirements:
+                content: `Extract passport data as structured JSON. Requirements:
                 - Ensure all dates are in YYYY-MM-DD format
                 - Return consistent object structure with all fields
                 - Format names in proper case
@@ -190,13 +203,19 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
             max_tokens: 1000
           });
 
-          const content = response.choices[0].message.content;
-          if (content) {
-            extractedData.push(JSON.parse(content));
+          if (response.choices[0].message.content) {
+            try {
+              const parsedData = JSON.parse(response.choices[0].message.content);
+              console.log('Successfully extracted passport data:', parsedData.passportNumber);
+              extractedData.push(parsedData);
+            } catch (parseError) {
+              console.error('Failed to parse AI response:', parseError);
+              continue;
+            }
           }
         }
       } catch (pageError) {
-        console.error(`Page ${pageNum} processing failed:`, pageError);
+        console.error(`Error processing page ${pageNum}:`, pageError);
       }
     }
   } catch (error) {
@@ -272,7 +291,7 @@ export function registerRoutes(app: Express): Server {
         .toBuffer();
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4",
         messages: [
           {
             role: "system",

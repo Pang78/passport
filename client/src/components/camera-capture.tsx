@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +12,7 @@ interface CameraCaptureProps {
 interface QualityCheckResult {
   isValid: boolean;
   message?: string;
+  issues?: string[];
 }
 
 const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
@@ -43,11 +43,12 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       const videoDevices = mediaDevices.filter(device => device.kind === 'videoinput');
       setDevices(videoDevices);
       return videoDevices;
-    } catch (error: any) {
-      setCameraError("Failed to access media devices");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to access media devices';
+      setCameraError(errorMessage);
       toast({
         title: "Device Error",
-        description: "Failed to access media devices",
+        description: errorMessage,
         variant: "destructive",
       });
       return [];
@@ -76,7 +77,8 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
           width: { ideal: 1920 },
           height: { ideal: 1080 },
           facingMode: deviceId ? undefined : "environment"
-        }
+        },
+        audio: false
       });
 
       streamRef.current = newStream;
@@ -84,112 +86,43 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
-        
-        await new Promise<void>((resolve, reject) => {
-          if (!videoRef.current) return reject(new Error("Video element not found"));
-          
-          const timeoutDuration = 30000; // 30 seconds timeout
-          const timeout = setTimeout(() => {
-            reject(new Error("Video stream initialization timed out"));
-          }, timeoutDuration);
-
-          const onLoaded = () => {
-            clearTimeout(timeout);
-            videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
-            resolve();
-          };
-
-          const onError = (e: Event) => {
-            clearTimeout(timeout);
-            videoRef.current?.removeEventListener('error', onError);
-            reject(new Error(`Video error: ${e}`));
-          };
-
-          videoRef.current.addEventListener('loadedmetadata', onLoaded);
-          videoRef.current.addEventListener('error', onError);
-        });
-
         await videoRef.current.play();
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Camera initialization failed';
       stopCurrentStream();
-      const message = error.name === 'NotAllowedError' 
-        ? "Camera access was denied. Please allow camera access and try again."
-        : error.message;
-
-      setCameraError(message);
+      setCameraError(errorMessage);
       toast({
         title: "Camera Error",
-        description: message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
   }, [initializeDevices, stopCurrentStream, toast]);
-
-  const switchDevice = useCallback(async (newDeviceId: string) => {
-    await initializeCamera(newDeviceId);
-  }, [initializeCamera]);
 
   const toggleFlash = useCallback(async () => {
     if (!streamRef.current) return;
 
     try {
       const track = streamRef.current.getVideoTracks()[0];
-      const capabilities = track.getCapabilities();
-      const constraints: MediaTrackConstraintSet = {};
-
-      if ('torch' in capabilities) {
-        constraints.torch = !flashEnabled;
-      } else if ('fillLightMode' in capabilities) {
-        constraints.fillLightMode = flashEnabled ? 'off' : 'flash';
+      // @ts-ignore - These properties are available but not in TypeScript definitions
+      if (track.getCapabilities?.().torch) {
+        await track.applyConstraints({
+          advanced: [{ torch: !flashEnabled }]
+        });
+        setFlashEnabled(!flashEnabled);
       } else {
         throw new Error("Flash not supported by this device");
       }
-
-      await track.applyConstraints({ advanced: [constraints] });
-      setFlashEnabled(!flashEnabled);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Flash control failed';
       toast({
         title: "Flash Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
   }, [flashEnabled, toast]);
-
-  const checkImageQuality = useCallback(async (canvas: HTMLCanvasElement): Promise<QualityCheckResult> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
-
-      const blob = await new Promise<Blob>(resolve => 
-        canvas.toBlob(blob => blob && resolve(blob), 'image/jpeg', 0.9)
-      );
-
-      const formData = new FormData();
-      formData.append('image', blob, 'quality-check.jpg');
-
-      const response = await fetch('/api/check-quality', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error: any) {
-      console.error('Quality check failed:', error);
-      return {
-        isValid: false,
-        message: error.message || 'Failed to validate image quality'
-      };
-    }
-  }, []);
 
   const captureImage = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -204,11 +137,23 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
       canvas.height = videoRef.current.videoHeight;
       context.drawImage(videoRef.current, 0, 0);
 
-      setPreviewImage(canvas.toDataURL('image/jpeg'));
-    } catch (error: any) {
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else throw new Error("Failed to create image blob");
+        }, 'image/jpeg', 0.9);
+      });
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string);
+      };
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Image capture failed';
       toast({
         title: "Capture Failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -221,20 +166,17 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
 
     try {
       setIsProcessing(true);
-      const qualityResult = await checkImageQuality(canvasRef.current);
-
-      if (!qualityResult.isValid) {
-        throw new Error(qualityResult.message || "Image quality check failed");
-      }
+      const formData = new FormData();
+      const blob = await fetch(previewImage).then(r => r.blob());
+      formData.append('image', blob, 'passport.jpg');
 
       const response = await fetch('/api/extract-passport', {
         method: 'POST',
-        body: JSON.stringify({ image: previewImage }),
-        headers: { 'Content-Type': 'application/json' },
+        body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Server error: ${response.status}`);
       }
 
       const result = await response.json();
@@ -245,17 +187,18 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
         title: "Success",
         description: "Passport data extracted successfully",
       });
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Processing failed';
       toast({
-        title: "Image Quality Issue",
-        description: Array.isArray(error.message) ? error.message.join(', ') : error.message,
+        title: "Processing Error",
+        description: errorMessage,
         variant: "destructive",
         duration: 5000,
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [previewImage, checkImageQuality, onImageCaptured, toast]);
+  }, [previewImage, onImageCaptured, toast]);
 
   useEffect(() => {
     initializeCamera();
