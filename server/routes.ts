@@ -84,12 +84,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 }
 
 
-        }
-      } catch (pageError) {
-        console.error(`Page ${pageNum} processing failed:`, pageError);
-      }
-    }
-async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
+        async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const fs = await import('fs/promises');
     await fs.mkdir('./exports', { recursive: true });
