@@ -6,7 +6,7 @@ import sharp from "sharp";
 import { OpenAI } from "openai";
 import crypto from "crypto";
 import { createObjectCsvWriter } from "csv-writer";
-import pdf2pic from "pdf2pic";
+
 
 const openai = new OpenAI();
 
@@ -83,30 +83,47 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
   }
 }
 
+
+        }
+      } catch (pageError) {
+        console.error(`Page ${pageNum} processing failed:`, pageError);
+      }
+    }
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const fs = await import('fs/promises');
+    const path = await import('path');
     await fs.mkdir('./exports', { recursive: true });
-    
-    const pdfParse = (await import('pdf-parse')).default;
-    const pdfData = await pdfParse(buffer);
-    
-    const pdf2pic = await import('pdf2pic');
-    const converter = new pdf2pic.FromBuffer({
+
+    // Use 'pdfjs-dist' to read directly from the buffer
+    const pdfjs = await import('pdfjs-dist');
+    const pdfDoc = await pdfjs.getDocument({ data: buffer }).promise;
+    const pageCount = pdfDoc.numPages;
+
+    const pdf2picModule = await import('pdf2pic');
+    const { fromBuffer } = pdf2picModule.default || pdf2picModule;
+
+    const converter = fromBuffer(buffer, {
       density: 300,
       format: "png",
       width: 2000,
       height: 2000,
-      savePath: "./exports"
+      savePath: "./exports",
+      saveFilename: `temp_${Date.now()}`,
+      preserveAspectRatio: true
     });
 
     const extractedData = [];
 
-    for (let pageNum = 1; pageNum <= pdfData.numpages; pageNum++) {
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       try {
-        const result = await converter(pageNum);
-        if (!result || !result.base64) {
-          console.error(`Failed to convert page ${pageNum}`);
+        const result = await converter(pageNum, { 
+          responseType: "base64",
+          compression: "none"
+        });
+
+        if (!result?.base64) {
+          console.error(`Skipping page ${pageNum} - conversion failed`);
           continue;
         }
 
@@ -115,52 +132,29 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
           messages: [
             {
               role: "system",
-              content: "Extract passport information from this image. Return a JSON object with fields: documentNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, sex."
+              content: "Extract passport data as JSON with fields: documentNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, sex."
             },
             {
               role: "user",
-              content: [
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:image/png;base64,${result.base64}`
-                  }
-                }
-              ]
+              content: [{ type: "image_url", image_url: { url: `data:image/png;base64,${result.base64}` }}]
             }
           ],
           max_tokens: 1000
         });
 
-        if (response.choices[0].message.content) {
-          try {
-            const parsedData = JSON.parse(response.choices[0].message.content);
-            extractedData.push(parsedData);
-          } catch (parseError) {
-            console.error('Failed to parse OpenAI response:', parseError);
-          }
+        const content = response.choices[0].message.content;
+        if (content) {
+          extractedData.push(JSON.parse(content));
         }
       } catch (pageError) {
-        console.error(`Error processing page ${pageNum}:`, pageError);
+        console.error(`Page ${pageNum} processing failed:`, pageError);
       }
-    }
-
-    // Cleanup temp files
-    try {
-      const files = await fs.readdir('./exports');
-      await Promise.all(
-        files
-          .filter(f => f.startsWith('temp'))
-          .map(f => fs.unlink(`./exports/${f}`))
-      );
-    } catch (cleanupError) {
-      console.error('Cleanup error:', cleanupError);
     }
 
     return extractedData;
   } catch (error) {
-    console.error('PDF processing error:', error);
-    throw new Error('Failed to process PDF document');
+    console.error('PDF processing failed:', error);
+    throw new Error('PDF processing error: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
 }
 
