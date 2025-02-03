@@ -96,7 +96,10 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
 
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      standardFontDataUrl: './client/public/standard_fonts/'
+      standardFontDataUrl: './client/public/standard_fonts/',
+      cMapUrl: './client/public/standard_fonts/',
+      cMapPacked: true,
+      disableFontFace: true
     });
     
     const pdfDoc = await loadingTask.promise;
@@ -105,20 +108,53 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       try {
         const page = await pdfDoc.getPage(pageNum);
-        const textContent: TextContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale });
+        
+        // Get both text content and operatorList for better extraction
+        const [textContent, operatorList] = await Promise.all([
+          page.getTextContent(),
+          page.getOperatorList()
+        ]);
 
-        const passportSections = pageText.split(/(?=passport no\.|passport number|nationality)/i);
+        // Improved text extraction
+        const textItems = textContent.items.map((item: any) => ({
+          text: item.str,
+          x: item.transform[4],
+          y: item.transform[5],
+          width: item.width,
+          height: item.height
+        }));
+
+        // Group text by vertical position (within 10 units) to handle multiple columns
+        const lineGroups: {[key: string]: any[]} = {};
+        textItems.forEach(item => {
+          const yKey = Math.round(item.y / 10) * 10;
+          if (!lineGroups[yKey]) lineGroups[yKey] = [];
+          lineGroups[yKey].push(item);
+        });
+
+        // Sort each group by x position and combine
+        const pageText = Object.values(lineGroups)
+          .map(group => group.sort((a, b) => a.x - b.x).map(item => item.text).join(' '))
+          .join('\n');
+
+        // Split into sections more accurately using multiple identifiers
+        const passportSections = pageText.split(/(?=(?:\b|^)(?:passport\s+(?:no|number)|nationality|surname|given\s+names?|date\s+of\s+birth)\b)/i);
 
         for (const section of passportSections) {
-          if (section.trim().length < 50) continue; // Skip too short sections
+          // More thorough section validation
+          if (section.trim().length < 50 || 
+              !section.match(/(?:passport|nationality|surname|birth)/i)) {
+            continue;
+          }
 
           const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4-vision-preview",
             messages: [
               {
                 role: "system",
-                content: `Extract passport data as structured JSON. Requirements:
+                content: `Extract passport data as structured JSON. You are processing a PDF section that may contain multiple passports. Requirements:
                 - Ensure all dates are in YYYY-MM-DD format
                 - Return consistent object structure with all fields
                 - Format names in proper case
