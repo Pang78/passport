@@ -39,7 +39,6 @@ const DEFAULT_RESPONSE: Omit<PassportData, "extraction_notes"> = {
   fullName: "",
   dateOfBirth: "",
   passportNumber: "",
-  idNumber: "",
   nationality: "",
   dateOfIssue: "",
   dateOfExpiry: "",
@@ -68,8 +67,7 @@ export async function extractPassportData(
 
   try {
     const openai = new OpenAI({
-      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
     const response = await openai.chat.completions.create({
@@ -113,7 +111,6 @@ export async function extractPassportData(
 
     if (!validation.success) {
       extractionNotes.push(`Validation errors: ${validation.error.message}`);
-      console.error("Validation errors:", validation.error);
     }
 
     const validData = validation.success ? validation.data : parsedData;
@@ -133,7 +130,6 @@ export async function extractPassportData(
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
-    console.error("Passport extraction error:", errorMessage);
     extractionNotes.push(`Critical error: ${errorMessage}`);
 
     return {

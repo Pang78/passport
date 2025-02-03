@@ -135,14 +135,7 @@ export function registerRoutes(app: Express): Server {
         messages: [
           {
             role: "system",
-            content: `Analyze passport photo quality. Check for:
-- Document type (must be a passport)
-- Image clarity and lighting
-- Document alignment and orientation
-- Glare or reflections
-- Complete document visibility
-
-Respond with JSON: { isValid: boolean, issues: string[] }. Provide specific, user-friendly issues.`
+            content: "Analyze passport photo quality. Respond with JSON: { isValid: boolean, issues: string[] }"
           },
           {
             role: "user",
