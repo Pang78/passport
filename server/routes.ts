@@ -391,6 +391,15 @@ Respond with JSON: { isValid: boolean, issues: string[] }. Provide specific, use
     }
   });
 
+  // Serve index.html for client-side routes in production
+  if (process.env.NODE_ENV === 'production') {
+    app.get('*', (req, res) => {
+      if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
+      }
+    });
+  }
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -7,6 +7,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Serve static files from the client dist directory in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '..', 'client');
+  app.use(express.static(distPath));
+}
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
