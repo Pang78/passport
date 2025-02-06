@@ -340,7 +340,10 @@ export function validatePassportData(data: Record<string, any>): ValidationResul
   }
 
   // 3. Nationality Validation
-  const nationality = (data.nationality || '').toUpperCase();
+  const nationalityValue = typeof data.nationality === 'object' 
+    ? data.nationality?.value || ''
+    : data.nationality || '';
+  const nationality = nationalityValue.toUpperCase();
   if (!COUNTRY_CODES.has(nationality)) {
     addValidation('nationality', 'Invalid country code');
   }
