@@ -101,10 +101,14 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
       standardFontDataUrl: FONT_PATH,
       cMapUrl: FONT_PATH,
       cMapPacked: true,
-      verbosity: 0,
-      disableFontFace: true,
+      verbosity: 1,
+      disableFontFace: false,
       enableXfa: true,
-      imageResourcesPath: FONT_PATH
+      imageResourcesPath: FONT_PATH,
+      maxImageSize: 16777216,
+      isEvalSupported: true,
+      disableRange: false,
+      disableAutoFetch: false
     });
 
     const pdfDoc = await loadingTask.promise;
@@ -121,7 +125,8 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         // Get text content with enhanced parameters
         const textContent = await page.getTextContent({
           normalizeWhitespace: true,
-          disableCombineTextItems: false
+          disableCombineTextItems: true,
+          includeMarkedContent: true
         });
 
         // Enhanced text extraction with better structure preservation
