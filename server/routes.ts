@@ -88,7 +88,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 }
 
 // Configure PDF.js with proper worker and font paths
-const FONT_PATH = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/standard_fonts');
+const FONT_PATH = path.join(process.cwd(), 'client/public/standard_fonts');
 pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
 
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
@@ -97,12 +97,14 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      useSystemFonts: false, // Changed to false to use embedded fonts
+      useSystemFonts: true,
       standardFontDataUrl: FONT_PATH,
       cMapUrl: FONT_PATH,
       cMapPacked: true,
-      verbosity: 1,
-      disableFontFace: false // Enable font loading
+      verbosity: 0,
+      disableFontFace: true,
+      enableXfa: true,
+      imageResourcesPath: FONT_PATH
     });
 
     const pdfDoc = await loadingTask.promise;
