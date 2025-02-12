@@ -123,28 +123,30 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         const viewport = page.getViewport({ scale });
 
         // Get text content with enhanced parameters
-        const textContent = await page.getTextContent({
-          normalizeWhitespace: true,
-          disableCombineTextItems: false,
-          includeMarkedContent: true
-        });
-
-        // Enhanced text extraction with better structure preservation and null checks
-        const textItems = textContent.items
-          .filter((item: any) => item && typeof item.str === 'string' && item.str.trim().length > 0)
-          .map((item: any) => {
-            const transform = Array.isArray(item.transform) && item.transform.length >= 6 ? item.transform : [1, 0, 0, 1, 0, 0];
-            return {
-              text: item.str.trim(),
-              x: Math.round(transform[4] || 0),
-              y: Math.round(viewport.height - (transform[5] || 0)),
-              width: item.width || 0,
-              height: item.height || 0,
-              fontSize: Math.sqrt((transform[0] || 1) * (transform[0] || 1) + (transform[1] || 0) * (transform[1] || 0))
-            };
-          })
-          .filter(item => item.text && item.text.length > 0)
-          .sort((a, b) => b.y - a.y || a.x - b.x);
+        const textContent = await page.getTextContent();
+        const textItems = [];
+        
+        for (const item of textContent.items) {
+          if (!item.str || typeof item.str !== 'string') continue;
+          
+          const text = item.str.trim();
+          if (!text) continue;
+          
+          const transform = item.transform || [1, 0, 0, 1, 0, 0];
+          const x = transform[4] || 0;
+          const y = viewport.height - (transform[5] || 0);
+          
+          textItems.push({
+            text,
+            x: Math.round(x),
+            y: Math.round(y),
+            width: item.width || 0,
+            height: item.height || 0,
+            fontSize: Math.sqrt((transform[0] || 1) * (transform[0] || 1) + (transform[1] || 0) * (transform[1] || 0))
+          });
+        }
+        
+        textItems.sort((a, b) => b.y - a.y || a.x - b.x);
 
         // Group text items by vertical position with dynamic threshold
         const lineGroups: { [key: string]: any[] } = {};
