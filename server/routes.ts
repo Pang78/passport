@@ -125,21 +125,25 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         // Get text content with enhanced parameters
         const textContent = await page.getTextContent({
           normalizeWhitespace: true,
-          disableCombineTextItems: true,
+          disableCombineTextItems: false,
           includeMarkedContent: true
         });
 
-        // Enhanced text extraction with better structure preservation
+        // Enhanced text extraction with better structure preservation and null checks
         const textItems = textContent.items
-          .filter((item: any) => item.str.trim().length > 0)
-          .map((item: any) => ({
-            text: item.str.trim(),
-            x: Math.round(item.transform[4]),
-            y: Math.round(viewport.height - item.transform[5]), // Adjust Y coordinate
-            width: item.width,
-            height: item.height,
-            fontSize: Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
-          }))
+          .filter((item: any) => item && typeof item.str === 'string' && item.str.trim().length > 0)
+          .map((item: any) => {
+            const transform = Array.isArray(item.transform) && item.transform.length >= 6 ? item.transform : [1, 0, 0, 1, 0, 0];
+            return {
+              text: item.str.trim(),
+              x: Math.round(transform[4] || 0),
+              y: Math.round(viewport.height - (transform[5] || 0)),
+              width: item.width || 0,
+              height: item.height || 0,
+              fontSize: Math.sqrt((transform[0] || 1) * (transform[0] || 1) + (transform[1] || 0) * (transform[1] || 0))
+            };
+          })
+          .filter(item => item.text && item.text.length > 0)
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
         // Group text items by vertical position with dynamic threshold
