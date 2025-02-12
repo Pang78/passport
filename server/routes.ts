@@ -170,7 +170,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
             // Add delay between API calls
             await new Promise(resolve => setTimeout(resolve, 1000));
             const response = await openai.chat.completions.create({
-              model: "gpt-4",
+              model: "gpt-4o",
               messages: [
                 {
                   role: "system",
@@ -301,7 +301,7 @@ export function registerRoutes(app: Express): Server {
         .toBuffer();
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
