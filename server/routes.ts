@@ -167,8 +167,6 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
           if (section.trim().length < 30) continue;
 
           try {
-            // Add delay between API calls
-            await new Promise(resolve => setTimeout(resolve, 1000));
             const response = await openai.chat.completions.create({
               model: "gpt-4",
               messages: [
