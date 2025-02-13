@@ -7,7 +7,9 @@ import { OpenAI } from "openai";
 import crypto from "crypto";
 import { Client } from '@replit/object-storage';
 
-const storage = new Client();
+const storage = new Client({
+  defaultBucketId: process.env.BUCKET_ID || process.env.REPLIT_OBJECT_STORE_BUCKET_ID
+});
 import { createObjectCsvWriter } from "csv-writer";
 import path from 'path';
 // Explicitly import the legacy build
