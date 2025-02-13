@@ -29,13 +29,15 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       setCompletedFiles(0);
       const batchSize = 5;
       const results = [];
-      
+
       for (let i = 0; i < files.length; i += batchSize) {
         const batch = files.slice(i, i + batchSize);
         const batchResults = await Promise.all(
           batch.map(async (file) => {
             const formData = new FormData();
-            formData.append("image", file);
+            batch.forEach(file => {
+              formData.append("images", file);
+            });
 
             const response = await fetch("/api/extract-passport", {
               method: "POST",
@@ -51,7 +53,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
             return data;
           })
         );
-        
+
         results.push(...batchResults);
         // Small delay between batches to prevent overload
         if (i + batchSize < files.length) {
@@ -220,7 +222,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         )}
       </div>
 
-      
+
     </>
   );
 }

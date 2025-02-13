@@ -16,8 +16,8 @@ const openai = new OpenAI();
 // Configure multer for both image and PDF uploads
 const upload = multer({
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 1
+    fileSize: 25 * 1024 * 1024, // 25MB limit
+    files: 5 // Allow multiple files
   },
   fileFilter: (_, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
@@ -260,37 +260,47 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Existing routes
-  app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
+  app.post("/api/extract-passport", upload.array("images", 5), async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No image provided" });
+      if (!req.files || !Array.isArray(req.files)) {
+        return res.status(400).json({ error: "No images provided" });
       }
 
-      const { processed, metadata } = await safeProcessImage(req.file.buffer);
+      const results = await Promise.all(req.files.map(async (file) => {
+        try {
+          const { processed, metadata } = await safeProcessImage(file.buffer);
+          const thumbnail = await sharp(processed)
+            .resize(300, 300, { fit: 'inside' })
+            .jpeg({ quality: 60 })
+            .toBuffer();
 
-      if (processed.length > 2 * 1024 * 1024) {
-        return res.status(413).json({ error: "Image too large after processing" });
-      }
+          const passportData = await extractPassportData(processed.toString("base64"));
 
-      // Generate optimized thumbnail
-      const thumbnail = await sharp(processed)
-        .resize(300, 300, { fit: 'inside' })
-        .jpeg({ quality: 60 })
-        .toBuffer();
-
-      const passportData = await extractPassportData(processed.toString("base64"));
+          return {
+            success: true,
+            ...passportData,
+            metadata: {
+              dimensions: { 
+                width: metadata.width ?? 0, 
+                height: metadata.height ?? 0
+              },
+              format: metadata.format,
+              size: processed.length
+            },
+            thumbnail: `data:image/jpeg;base64,${thumbnail.toString("base64")}`
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            filename: file.originalname
+          };
+        }
+      }));
 
       res.json({
-        ...passportData,
-        metadata: {
-          dimensions: { 
-            width: metadata.width ?? 0, 
-            height: metadata.height ?? 0
-          },
-          format: metadata.format,
-          size: processed.length
-        },
-        thumbnail: `data:image/jpeg;base64,${thumbnail.toString("base64")}`
+        success: true,
+        results: results
       });
 
     } catch (error: any) {
