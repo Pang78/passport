@@ -332,7 +332,14 @@ export default function Home() {
                         <TableRow
                           key={index}
                           className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => { setSelectedPassport(data); setShowModal(true); }}
+                          onClick={() => {
+                            const passportWithImage = {
+                              ...data,
+                              imageUrl: data.passportPhoto || data.imageUrl
+                            };
+                            setSelectedPassport(passportWithImage);
+                            setShowModal(true);
+                          }}
                         >
                           <TableCell className="font-medium">
                             {typeof data.fullName === 'object' ? data.fullName.value : data.fullName}
@@ -393,17 +400,17 @@ export default function Home() {
           {/* Modal */}
           {showModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+              <div className="bg-white rounded-lg shadow-lg p-6 w-[800px] max-h-[90vh] overflow-y-auto">
                 {selectedPassport && (
                   <>
                     <h2 className="text-xl font-bold mb-4">Passport Details</h2>
                     <div className="space-y-4">
-                      {selectedPassport.passportPhoto && (
+                      {(selectedPassport.passportPhoto || selectedPassport.imageUrl) && (
                         <div className="border rounded-lg p-2 bg-gray-50">
                           <img
-                            src={selectedPassport.passportPhoto}
+                            src={selectedPassport.passportPhoto || selectedPassport.imageUrl}
                             alt="Passport Photo"
-                            className="w-full max-h-64 object-contain rounded"
+                            className="w-full max-h-96 object-contain rounded"
                           />
                         </div>
                       )}
