@@ -16,8 +16,8 @@ const openai = new OpenAI();
 // Configure multer for both image and PDF uploads
 const upload = multer({
   limits: {
-    fileSize: 25 * 1024 * 1024, // 25MB limit
-    files: 5 // Allow multiple files
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 1
   },
   fileFilter: (_, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
@@ -88,7 +88,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 }
 
 // Configure PDF.js with proper worker and font paths
-const FONT_PATH = path.join(process.cwd(), 'client/public/standard_fonts');
+const FONT_PATH = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/standard_fonts');
 pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
 
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
@@ -97,18 +97,12 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      useSystemFonts: true,
+      useSystemFonts: false, // Changed to false to use embedded fonts
       standardFontDataUrl: FONT_PATH,
       cMapUrl: FONT_PATH,
       cMapPacked: true,
       verbosity: 1,
-      disableFontFace: false,
-      enableXfa: true,
-      imageResourcesPath: FONT_PATH,
-      maxImageSize: 16777216,
-      isEvalSupported: true,
-      disableRange: false,
-      disableAutoFetch: false
+      disableFontFace: false // Enable font loading
     });
 
     const pdfDoc = await loadingTask.promise;
@@ -123,30 +117,23 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         const viewport = page.getViewport({ scale });
 
         // Get text content with enhanced parameters
-        const textContent = await page.getTextContent();
-        const textItems = [];
-        
-        for (const item of textContent.items) {
-          if (!item.str || typeof item.str !== 'string') continue;
-          
-          const text = item.str.trim();
-          if (!text) continue;
-          
-          const transform = item.transform || [1, 0, 0, 1, 0, 0];
-          const x = transform[4] || 0;
-          const y = viewport.height - (transform[5] || 0);
-          
-          textItems.push({
-            text,
-            x: Math.round(x),
-            y: Math.round(y),
-            width: item.width || 0,
-            height: item.height || 0,
-            fontSize: Math.sqrt((transform[0] || 1) * (transform[0] || 1) + (transform[1] || 0) * (transform[1] || 0))
-          });
-        }
-        
-        textItems.sort((a, b) => b.y - a.y || a.x - b.x);
+        const textContent = await page.getTextContent({
+          normalizeWhitespace: true,
+          disableCombineTextItems: false
+        });
+
+        // Enhanced text extraction with better structure preservation
+        const textItems = textContent.items
+          .filter((item: any) => item.str.trim().length > 0)
+          .map((item: any) => ({
+            text: item.str.trim(),
+            x: Math.round(item.transform[4]),
+            y: Math.round(viewport.height - item.transform[5]), // Adjust Y coordinate
+            width: item.width,
+            height: item.height,
+            fontSize: Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
+          }))
+          .sort((a, b) => b.y - a.y || a.x - b.x);
 
         // Group text items by vertical position with dynamic threshold
         const lineGroups: { [key: string]: any[] } = {};
@@ -183,7 +170,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
             // Add delay between API calls
             await new Promise(resolve => setTimeout(resolve, 1000));
             const response = await openai.chat.completions.create({
-              model: "gpt-4o",
+              model: "gpt-4",
               messages: [
                 {
                   role: "system",
@@ -260,47 +247,37 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Existing routes
-  app.post("/api/extract-passport", upload.array("images", 5), async (req, res) => {
+  app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
     try {
-      if (!req.files || !Array.isArray(req.files)) {
-        return res.status(400).json({ error: "No images provided" });
+      if (!req.file) {
+        return res.status(400).json({ error: "No image provided" });
       }
 
-      const results = await Promise.all(req.files.map(async (file) => {
-        try {
-          const { processed, metadata } = await safeProcessImage(file.buffer);
-          const thumbnail = await sharp(processed)
-            .resize(300, 300, { fit: 'inside' })
-            .jpeg({ quality: 60 })
-            .toBuffer();
+      const { processed, metadata } = await safeProcessImage(req.file.buffer);
 
-          const passportData = await extractPassportData(processed.toString("base64"));
+      if (processed.length > 2 * 1024 * 1024) {
+        return res.status(413).json({ error: "Image too large after processing" });
+      }
 
-          return {
-            success: true,
-            ...passportData,
-            metadata: {
-              dimensions: { 
-                width: metadata.width ?? 0, 
-                height: metadata.height ?? 0
-              },
-              format: metadata.format,
-              size: processed.length
-            },
-            thumbnail: `data:image/jpeg;base64,${thumbnail.toString("base64")}`
-          };
-        } catch (error) {
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            filename: file.originalname
-          };
-        }
-      }));
+      // Generate optimized thumbnail
+      const thumbnail = await sharp(processed)
+        .resize(300, 300, { fit: 'inside' })
+        .jpeg({ quality: 60 })
+        .toBuffer();
+
+      const passportData = await extractPassportData(processed.toString("base64"));
 
       res.json({
-        success: true,
-        results: results
+        ...passportData,
+        metadata: {
+          dimensions: { 
+            width: metadata.width ?? 0, 
+            height: metadata.height ?? 0
+          },
+          format: metadata.format,
+          size: processed.length
+        },
+        thumbnail: `data:image/jpeg;base64,${thumbnail.toString("base64")}`
       });
 
     } catch (error: any) {
@@ -324,7 +301,7 @@ export function registerRoutes(app: Express): Server {
         .toBuffer();
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4",
         messages: [
           {
             role: "system",
