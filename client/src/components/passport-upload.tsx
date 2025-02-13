@@ -27,36 +27,51 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
   const extractData = useMutation({
     mutationFn: async (files: File[]) => {
       setCompletedFiles(0);
-      const batchSize = 5;
+      const batchSize = 10; // Increased batch size
       const results = [];
+      const chunks = [];
       
+      // Split files into chunks
       for (let i = 0; i < files.length; i += batchSize) {
-        const batch = files.slice(i, i + batchSize);
+        chunks.push(files.slice(i, i + batchSize));
+      }
+
+      // Process chunks concurrently with controlled concurrency
+      const processChunk = async (chunk: File[]) => {
         const batchResults = await Promise.all(
-          batch.map(async (file) => {
+          chunk.map(async (file) => {
             const formData = new FormData();
             formData.append("image", file);
 
-            const response = await fetch("/api/extract-passport", {
-              method: "POST",
-              body: formData,
-            });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-            if (!response.ok) {
-              throw new Error(`Failed to process ${file.name}: ${await response.text()}`);
+            try {
+              const response = await fetch("/api/extract-passport", {
+                method: "POST",
+                body: formData,
+                signal: controller.signal,
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to process ${file.name}`);
+              }
+
+              const data = await response.json();
+              setCompletedFiles(prev => prev + 1);
+              return data;
+            } finally {
+              clearTimeout(timeoutId);
             }
-
-            const data = await response.json();
-            setCompletedFiles(prev => prev + 1);
-            return data;
           })
         );
-        
+        return batchResults;
+      };
+
+      // Process all chunks with controlled concurrency
+      for (const chunk of chunks) {
+        const batchResults = await processChunk(chunk);
         results.push(...batchResults);
-        // Small delay between batches to prevent overload
-        if (i + batchSize < files.length) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
       }
 
       return results;
