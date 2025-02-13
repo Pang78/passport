@@ -35,6 +35,7 @@ export type PassportData = {
   };
   overall_confidence?: number;
   extraction_notes?: string[];
+  imageUrl?: string; // Added imageUrl field
 };
 
 export default function Home() {
@@ -56,7 +57,8 @@ export default function Home() {
       "Overall Confidence",
       "Remarks",
       "Valid",
-      "Extraction Notes"
+      "Extraction Notes",
+      "Image URL" //Added Image URL to CSV export
     ].map(header => `"${header}"`).join(",");
 
     // Create CSV rows
@@ -74,7 +76,8 @@ export default function Home() {
       data.overall_confidence?.toFixed(2) || "0",
       Array.isArray(data.remarks) ? data.remarks.join("; ") : String(data.remarks || ""),
       data.isValid ? "Yes" : "No",
-      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || "")
+      Array.isArray(data.extraction_notes) ? data.extraction_notes.join("; ") : String(data.extraction_notes || ""),
+      data.imageUrl || "" //Added Image URL to CSV export
     ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(","));
 
     // Combine headers and rows
@@ -195,6 +198,7 @@ export default function Home() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Expiry</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valid</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image URL</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -209,6 +213,7 @@ export default function Home() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {data.overall_confidence !== undefined ? `${(data.overall_confidence * 100).toFixed(1)}%` : "N/A"}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.imageUrl}</td>
                         </tr>
                       ))}
                     </tbody>

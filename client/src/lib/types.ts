@@ -40,6 +40,7 @@ export interface PassportData {
     userId: string;
     hostname: string;
   };
+  imageUrl?: string; // Added imageUrl property
 }
 
 export interface ImageQualityMetrics {
