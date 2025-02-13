@@ -40,11 +40,16 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       const processChunk = async (chunk: File[]) => {
         const batchResults = await Promise.all(
           chunk.map(async (file) => {
+            // Validate file size
+            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+              throw new Error(`File ${file.name} is too large (max 10MB)`);
+            }
+
             const formData = new FormData();
             formData.append("image", file);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120 seconds
+            const timeoutId = setTimeout(() => controller.abort(), 180000); // Increased to 3 minutes
 
             try {
               const response = await fetch("/api/extract-passport", {
