@@ -30,7 +30,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
       const batchSize = 10; // Increased batch size
       const results = [];
       const chunks = [];
-      
+
       // Split files into chunks
       for (let i = 0; i < files.length; i += batchSize) {
         chunks.push(files.slice(i, i + batchSize));
@@ -44,33 +44,45 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
             formData.append("image", file);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased to 60 seconds
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120 seconds
 
             try {
               const response = await fetch("/api/extract-passport", {
                 method: "POST",
+                headers: {
+                  'Accept': 'application/json',
+                },
                 body: formData,
                 signal: controller.signal,
                 keepalive: true,
               });
 
-              if (response.status === 408) {
-                throw new Error(`Processing timeout for ${file.name}`);
-              }
-
               if (!response.ok) {
-                throw new Error(`Failed to process ${file.name}`);
+                if (response.status === 408) {
+                  throw new Error(`Processing timeout for ${file.name}`);
+                } else {
+                  const errorData = await response.json();
+                  throw new Error(`Failed to process ${file.name}: ${errorData.message || response.statusText}`);
+                }
               }
 
               const data = await response.json();
-              setCompletedFiles(prev => prev + 1);
+              setCompletedFiles((prev) => prev + 1);
               return data;
+            } catch (error: any) {
+              console.error("Error processing file:", file.name, error);
+              toast({
+                title: "Error processing file",
+                description: `Error processing ${file.name}: ${error.message}`,
+                variant: "destructive",
+              });
+              return null; // Handle failed processing gracefully
             } finally {
               clearTimeout(timeoutId);
             }
           })
         );
-        return batchResults;
+        return batchResults.filter(result => result !== null); // Filter out null results
       };
 
       // Process all chunks with controlled concurrency
@@ -240,7 +252,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         )}
       </div>
 
-      
+
     </>
   );
 }

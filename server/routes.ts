@@ -265,6 +265,7 @@ export function registerRoutes(app: Express): Server {
 
   // Existing routes
   app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
+    res.setTimeout(120000); // 2 minute timeout
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No image provided" });
