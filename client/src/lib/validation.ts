@@ -370,7 +370,10 @@ export function validatePassportData(data: Record<string, any>): ValidationResul
   });
 
   // 6. Name Validation
-  const fullName = (data.fullName || '').trim();
+  const fullName = typeof data.fullName === 'object' 
+    ? data.fullName?.value?.trim() || ''
+    : (data.fullName || '').trim();
+  
   if (fullName) {
     if (!/\s/.test(fullName)) {
       addValidation('fullName', 'Missing surname/given name separator');
