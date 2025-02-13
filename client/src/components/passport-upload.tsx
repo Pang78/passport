@@ -35,7 +35,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         const batchResults = await Promise.all(
           batch.map(async (file) => {
             const formData = new FormData();
-            formData.append("image", file);
+            formData.append("file", file);
 
             const response = await fetch("/api/extract-passport", {
               method: "POST",
