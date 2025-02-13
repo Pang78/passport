@@ -73,4 +73,7 @@ app.use((req, res, next) => {
   server.listen(PORT, "0.0.0.0", () => {
     log(`serving on port ${PORT}`);
   });
+
+  // Ensure all routes are accessible externally
+  app.set('trust proxy', 1);
 })();

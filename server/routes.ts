@@ -250,12 +250,18 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
 }
 
 export function registerRoutes(app: Express): Server {
-  // Previous security headers
-  app.use((_, res, next) => {
-    res.header('Content-Type', 'application/json; charset=utf-8');
+  // Security and CORS headers
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
     res.header('X-Content-Type-Options', 'nosniff');
     res.header('X-Frame-Options', 'DENY');
     res.header('X-XSS-Protection', '1; mode=block');
+    
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
     next();
   });
 
