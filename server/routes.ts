@@ -5,9 +5,6 @@ import { extractPassportData } from "../client/src/lib/openai";
 import sharp from "sharp";
 import { OpenAI } from "openai";
 import crypto from "crypto";
-import { Client } from '@replit/object-storage';
-
-const storage = new Client();
 import { createObjectCsvWriter } from "csv-writer";
 import path from 'path';
 // Explicitly import the legacy build
@@ -287,22 +284,11 @@ export function registerRoutes(app: Express): Server {
         .jpeg({ quality: 60 })
         .toBuffer();
 
-      // Generate unique filename
-      const imageId = crypto.randomBytes(16).toString('hex');
-      const imageKey = `passports/${imageId}.jpg`;
-      
-      // Store processed image
-      await storage.upload(imageKey, processed, {
-        contentType: 'image/jpeg',
-        public: true
-      });
-
-      const imageUrl = await storage.getPublicUrl(imageKey);
       const passportData = await extractPassportData(processed.toString("base64"));
 
       res.json({
         ...passportData,
-        imageUrl,
+        imageUrl: `data:image/jpeg;base64,${processed.toString("base64")}`,
         metadata: {
           dimensions: { 
             width: metadata.width ?? 0, 
