@@ -27,73 +27,36 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
   const extractData = useMutation({
     mutationFn: async (files: File[]) => {
       setCompletedFiles(0);
-      const batchSize = 10; // Increased batch size
+      const batchSize = 5;
       const results = [];
-      const chunks = [];
-
-      // Split files into chunks
+      
       for (let i = 0; i < files.length; i += batchSize) {
-        chunks.push(files.slice(i, i + batchSize));
-      }
-
-      // Process chunks concurrently with controlled concurrency
-      const processChunk = async (chunk: File[]) => {
+        const batch = files.slice(i, i + batchSize);
         const batchResults = await Promise.all(
-          chunk.map(async (file) => {
-            // Validate file size
-            if (file.size > 10 * 1024 * 1024) { // 10MB limit
-              throw new Error(`File ${file.name} is too large (max 10MB)`);
-            }
-
+          batch.map(async (file) => {
             const formData = new FormData();
             formData.append("image", file);
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 180000); // Increased to 3 minutes
+            const response = await fetch("/api/extract-passport", {
+              method: "POST",
+              body: formData,
+            });
 
-            try {
-              const response = await fetch("/api/extract-passport", {
-                method: "POST",
-                headers: {
-                  'Accept': 'application/json',
-                },
-                body: formData,
-                signal: controller.signal,
-                keepalive: true,
-              });
-
-              if (!response.ok) {
-                if (response.status === 408) {
-                  throw new Error(`Processing timeout for ${file.name}`);
-                } else {
-                  const errorData = await response.json();
-                  throw new Error(`Failed to process ${file.name}: ${errorData.message || response.statusText}`);
-                }
-              }
-
-              const data = await response.json();
-              setCompletedFiles((prev) => prev + 1);
-              return data;
-            } catch (error: any) {
-              console.error("Error processing file:", file.name, error);
-              toast({
-                title: "Error processing file",
-                description: `Error processing ${file.name}: ${error.message}`,
-                variant: "destructive",
-              });
-              return null; // Handle failed processing gracefully
-            } finally {
-              clearTimeout(timeoutId);
+            if (!response.ok) {
+              throw new Error(`Failed to process ${file.name}: ${await response.text()}`);
             }
+
+            const data = await response.json();
+            setCompletedFiles(prev => prev + 1);
+            return data;
           })
         );
-        return batchResults.filter(result => result !== null); // Filter out null results
-      };
-
-      // Process all chunks with controlled concurrency
-      for (const chunk of chunks) {
-        const batchResults = await processChunk(chunk);
+        
         results.push(...batchResults);
+        // Small delay between batches to prevent overload
+        if (i + batchSize < files.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
 
       return results;
@@ -257,7 +220,7 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
         )}
       </div>
 
-
+      
     </>
   );
 }

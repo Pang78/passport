@@ -16,7 +16,7 @@ const openai = new OpenAI();
 // Configure multer for both image and PDF uploads
 const upload = multer({
   limits: {
-    fileSize: 15 * 1024 * 1024, // 15MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 1
   },
   fileFilter: (_, file, cb) => {
@@ -45,11 +45,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
     const pipeline = sharp(buffer, { 
       limitInputPixels: 25_000_000,
       sequentialRead: true,
-      failOn: 'none',
-      density: 72
-    }).rotate().timeout({
-      seconds: 30
-    });
+    }).rotate();
 
     const metadata = await pipeline.metadata();
 
@@ -129,17 +125,17 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         // Get text content with enhanced parameters
         const textContent = await page.getTextContent();
         const textItems = [];
-
+        
         for (const item of textContent.items) {
           if (!item.str || typeof item.str !== 'string') continue;
-
+          
           const text = item.str.trim();
           if (!text) continue;
-
+          
           const transform = item.transform || [1, 0, 0, 1, 0, 0];
           const x = transform[4] || 0;
           const y = viewport.height - (transform[5] || 0);
-
+          
           textItems.push({
             text,
             x: Math.round(x),
@@ -149,7 +145,7 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
             fontSize: Math.sqrt((transform[0] || 1) * (transform[0] || 1) + (transform[1] || 0) * (transform[1] || 0))
           });
         }
-
+        
         textItems.sort((a, b) => b.y - a.y || a.x - b.x);
 
         // Group text items by vertical position with dynamic threshold
@@ -265,7 +261,6 @@ export function registerRoutes(app: Express): Server {
 
   // Existing routes
   app.post("/api/extract-passport", upload.single("image"), async (req, res) => {
-    res.setTimeout(120000); // 2 minute timeout
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No image provided" });
