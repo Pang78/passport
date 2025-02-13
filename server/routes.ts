@@ -19,7 +19,6 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 1
   },
-  storage: multer.memoryStorage(),
   fileFilter: (_, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -89,7 +88,7 @@ async function safeProcessImage(buffer: Buffer): Promise<{ processed: Buffer; me
 }
 
 // Configure PDF.js with proper worker and font paths
-const FONT_PATH = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/standard_fonts');
+const FONT_PATH = path.join(process.cwd(), 'client/public/standard_fonts');
 pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
 
 async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
@@ -98,12 +97,18 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   try {
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      useSystemFonts: false, // Changed to false to use embedded fonts
+      useSystemFonts: true,
       standardFontDataUrl: FONT_PATH,
       cMapUrl: FONT_PATH,
       cMapPacked: true,
       verbosity: 1,
-      disableFontFace: false // Enable font loading
+      disableFontFace: false,
+      enableXfa: true,
+      imageResourcesPath: FONT_PATH,
+      maxImageSize: 16777216,
+      isEvalSupported: true,
+      disableRange: false,
+      disableAutoFetch: false
     });
 
     const pdfDoc = await loadingTask.promise;
@@ -118,23 +123,30 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         const viewport = page.getViewport({ scale });
 
         // Get text content with enhanced parameters
-        const textContent = await page.getTextContent({
-          normalizeWhitespace: true,
-          disableCombineTextItems: false
-        });
-
-        // Enhanced text extraction with better structure preservation
-        const textItems = textContent.items
-          .filter((item: any) => item.str.trim().length > 0)
-          .map((item: any) => ({
-            text: item.str.trim(),
-            x: Math.round(item.transform[4]),
-            y: Math.round(viewport.height - item.transform[5]), // Adjust Y coordinate
-            width: item.width,
-            height: item.height,
-            fontSize: Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
-          }))
-          .sort((a, b) => b.y - a.y || a.x - b.x);
+        const textContent = await page.getTextContent();
+        const textItems = [];
+        
+        for (const item of textContent.items) {
+          if (!item.str || typeof item.str !== 'string') continue;
+          
+          const text = item.str.trim();
+          if (!text) continue;
+          
+          const transform = item.transform || [1, 0, 0, 1, 0, 0];
+          const x = transform[4] || 0;
+          const y = viewport.height - (transform[5] || 0);
+          
+          textItems.push({
+            text,
+            x: Math.round(x),
+            y: Math.round(y),
+            width: item.width || 0,
+            height: item.height || 0,
+            fontSize: Math.sqrt((transform[0] || 1) * (transform[0] || 1) + (transform[1] || 0) * (transform[1] || 0))
+          });
+        }
+        
+        textItems.sort((a, b) => b.y - a.y || a.x - b.x);
 
         // Group text items by vertical position with dynamic threshold
         const lineGroups: { [key: string]: any[] } = {};
@@ -168,8 +180,10 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
           if (section.trim().length < 30) continue;
 
           try {
+            // Add delay between API calls
+            await new Promise(resolve => setTimeout(resolve, 1000));
             const response = await openai.chat.completions.create({
-              model: "gpt-4",
+              model: "gpt-4o",
               messages: [
                 {
                   role: "system",
@@ -300,7 +314,7 @@ export function registerRoutes(app: Express): Server {
         .toBuffer();
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
