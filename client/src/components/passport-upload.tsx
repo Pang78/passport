@@ -44,14 +44,19 @@ export default function PassportUpload({ onDataExtracted }: PassportUploadProps)
             formData.append("image", file);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased to 60 seconds
 
             try {
               const response = await fetch("/api/extract-passport", {
                 method: "POST",
                 body: formData,
                 signal: controller.signal,
+                keepalive: true,
               });
+
+              if (response.status === 408) {
+                throw new Error(`Processing timeout for ${file.name}`);
+              }
 
               if (!response.ok) {
                 throw new Error(`Failed to process ${file.name}`);
