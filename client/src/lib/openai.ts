@@ -12,6 +12,7 @@ const PassportSchema = z.object({
   dateOfExpiry: z.string().regex(/\d{4}-\d{2}-\d{2}/),
   placeOfBirth: z.string(),
   issuingAuthority: z.string(),
+  gender: z.string(),
   mrz: z.object({
     line1: z.string().length(44).or(z.string().length(36)),
     line2: z.string().length(44).or(z.string().length(36)),

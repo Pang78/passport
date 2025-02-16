@@ -125,6 +125,7 @@ export default function Home() {
       typeof data.passportNumber === 'object' ? data.passportNumber.value : data.passportNumber || "",
       typeof data.idNumber === 'object' ? data.idNumber.value : data.idNumber || "",
       typeof data.nationality === 'object' ? data.nationality.value : data.nationality || "",
+      typeof data.gender === 'object' ? data.gender.value : data.gender || "",
       typeof data.dateOfIssue === 'object' ? data.dateOfIssue.value : data.dateOfIssue || "",
       typeof data.dateOfExpiry === 'object' ? data.dateOfExpiry.value : data.dateOfExpiry || "",
       typeof data.placeOfBirth === 'object' ? data.placeOfBirth.value : data.placeOfBirth || "",
