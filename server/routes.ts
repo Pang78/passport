@@ -11,7 +11,15 @@ import path from 'path';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { TextContent } from 'pdfjs-dist/types/src/display/api';
 
-const openai = new OpenAI();
+// Check for OpenAI API key
+if (!process.env.OPENAI_API_KEY) {
+  console.error("Warning: OPENAI_API_KEY environment variable is not set. OpenAI functionality will not work.");
+}
+
+// Initialize OpenAI client with API key from environment variables
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "dummy-key-for-development"
+});
 
 // Configure multer for both image and PDF uploads
 const upload = multer({
