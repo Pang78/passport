@@ -13,17 +13,26 @@ export default defineConfig({
     hmr: {
       overlay: false,
     },
+    port: 3000,
+    // In development, proxy API requests to backend
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {
       "@db": path.resolve(__dirname, "db"),
-      "@": path.resolve(__dirname, "client/src"), // Alias for the src directory
+      "@": path.resolve(__dirname, "./client/src"),
     },
   },
   root: path.resolve(__dirname, "client"), // Root is "client"
   publicDir: path.resolve(__dirname, "client/public"),
   build: {
-    outDir: path.resolve(__dirname, "dist/client"),
+    outDir: "dist/client",
     emptyOutDir: true,
+    sourcemap: true,
   },
 });
