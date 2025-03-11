@@ -10,6 +10,10 @@ import path from 'path';
 // Explicitly import the legacy build
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { TextContent } from 'pdfjs-dist/types/src/display/api';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Check for OpenAI API key
 if (!process.env.OPENAI_API_KEY) {
@@ -18,8 +22,13 @@ if (!process.env.OPENAI_API_KEY) {
 
 // Initialize OpenAI client with API key from environment variables
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "dummy-key-for-development"
+  apiKey: process.env.OPENAI_API_KEY || '',
 });
+
+// Validate API key on startup
+if (!process.env.OPENAI_API_KEY) {
+  console.error('Warning: OPENAI_API_KEY not set in environment variables');
+}
 
 // Configure multer for both image and PDF uploads
 const upload = multer({
