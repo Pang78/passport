@@ -1,12 +1,19 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes.ts";
+import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env';
+console.log(`Loading environment from ${envFile}`);
+dotenv.config({ path: envFile });
+
+// Log loaded environment variables for debugging (without showing sensitive values)
+const envKeys = Object.keys(process.env).filter(key => !key.includes('KEY') && !key.includes('SECRET'));
+console.log(`Loaded environment variables: ${envKeys.join(', ')}`);
+console.log(`OpenAI API Key available: ${Boolean(process.env.OPENAI_API_KEY)}`);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

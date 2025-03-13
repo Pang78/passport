@@ -15,16 +15,20 @@ import { TextContent } from 'pdfjs-dist/types/src/display/api';
 let openai: OpenAI;
 
 try {
-  openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-development'
-  });
+  const apiKey = process.env.OPENAI_API_KEY;
   
-  // Test if we have a valid API key
-  if (!process.env.OPENAI_API_KEY) {
+  // Log environment for debugging
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  
+  if (!apiKey) {
     console.warn('⚠️ WARNING: OPENAI_API_KEY environment variable is missing.');
     console.warn('AI-related functionality will be disabled in development mode.');
     console.warn('Please set the OPENAI_API_KEY environment variable for full functionality.');
   }
+  
+  openai = new OpenAI({
+    apiKey: apiKey || 'dummy-key-for-development'
+  });
 } catch (error) {
   console.error('Failed to initialize OpenAI client:', error);
   // Create a mock client with dummy methods
