@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passport Analyzer API</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #0070f3;
+      margin-top: 40px;
+    }
+    h2 {
+      color: #0070f3;
+      margin-top: 30px;
+    }
+    code {
+      background-color: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    pre {
+      background-color: #f0f0f0;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .endpoint {
+      margin-bottom: 30px;
+      border-left: 4px solid #0070f3;
+      padding-left: 15px;
+    }
+    a {
+      color: #0070f3;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Passport Analyzer API</h1>
+  <p>This is the API-only deployment of the Passport Analyzer application.</p>
+  
+  <h2>Available Endpoints</h2>
+  
+  <div class="endpoint">
+    <h3>Health Check</h3>
+    <p><code>GET /api/health</code></p>
+    <p>Check if the API is running correctly.</p>
+    <pre>curl https://passport-analyzer.vercel.app/api/health</pre>
+  </div>
+  
+  <div class="endpoint">
+    <h3>Extract Passport Data</h3>
+    <p><code>POST /api/extract-passport</code></p>
+    <p>Extract data from a passport image using AI.</p>
+    <pre>curl -X POST https://passport-analyzer.vercel.app/api/extract-passport \
+  -F "image=@passport.jpg"</pre>
+  </div>
+  
+  <h2>Note</h2>
+  <p>This is an API-only deployment. For the full application, please visit the main website or run the application locally.</p>
+  
+  <footer style="margin-top: 50px; border-top: 1px solid #eaeaea; padding-top: 20px;">
+    <p>Created with ❤️ using Express.js and OpenAI</p>
+  </footer>
+</body>
+</html> 

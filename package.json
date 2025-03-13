@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "NODE_NO_WARNINGS=1 tsx server/index.ts",
     "build": "vite build",
-    "build-server": "tsc --project tsconfig.server.json",
-    "vercel-build": "vite build",
+    "vercel-build": "echo 'Skipping client build for API-only deployment'",
     "type-check": "tsc --noEmit",
     "start": "node dist/server/index.js",
     "lint": "eslint . --ext .ts,.tsx",
