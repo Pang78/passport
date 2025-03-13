@@ -6,37 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Upload, Camera } from "lucide-react";
 import { useState } from "react";
 import { validatePassportData } from "@/lib/validation";
-
-export type PassportData = {
-  fullName: string;
-  dateOfBirth: string;
-  passportNumber: string;
-  nationality: string;
-  dateOfIssue: string;
-  dateOfExpiry: string;
-  placeOfBirth: string;
-  issuingAuthority: string;
-  mrz?: {
-    line1: string;
-    line2: string;
-  };
-  remarks?: string[];
-  isValid?: boolean;
-  confidence_scores?: {
-    fullName: number;
-    dateOfBirth: number;
-    passportNumber: number;
-    nationality: number;
-    dateOfIssue: number;
-    dateOfExpiry: number;
-    placeOfBirth: number;
-    issuingAuthority: number;
-    mrz: number;
-  };
-  overall_confidence?: number;
-  extraction_notes?: string[];
-  imageUrl?: string; // Added imageUrl field
-};
+import { PassportData } from "@/lib/types";
 
 export default function Home() {
   const [passportDataList, setPassportDataList] = useState<PassportData[]>([]);
@@ -63,14 +33,14 @@ export default function Home() {
 
     // Create CSV rows
     const rows = passportDataList.map((data) => [
-      data.fullName || "",
-      data.dateOfBirth || "",
-      data.passportNumber || "",
-      data.nationality || "",
-      data.dateOfIssue || "",
-      data.dateOfExpiry || "",
-      data.placeOfBirth || "",
-      data.issuingAuthority || "",
+      typeof data.fullName === 'object' ? data.fullName.value : data.fullName || "",
+      typeof data.dateOfBirth === 'object' ? data.dateOfBirth.value : data.dateOfBirth || "",
+      typeof data.passportNumber === 'object' ? data.passportNumber.value : data.passportNumber || "",
+      typeof data.nationality === 'object' ? data.nationality.value : data.nationality || "",
+      typeof data.dateOfIssue === 'object' ? data.dateOfIssue.value : data.dateOfIssue || "",
+      typeof data.dateOfExpiry === 'object' ? data.dateOfExpiry.value : data.dateOfExpiry || "",
+      typeof data.placeOfBirth === 'object' ? data.placeOfBirth.value : data.placeOfBirth || "",
+      typeof data.issuingAuthority === 'object' ? data.issuingAuthority.value : data.issuingAuthority || "",
       data.mrz?.line1 || "",
       data.mrz?.line2 || "",
       data.overall_confidence?.toFixed(2) || "0",
@@ -204,11 +174,21 @@ export default function Home() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {passportDataList.map((data, index) => (
                         <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.fullName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.passportNumber}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.nationality}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.dateOfBirth}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.dateOfExpiry}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {typeof data.fullName === 'object' ? data.fullName.value : data.fullName}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {typeof data.passportNumber === 'object' ? data.passportNumber.value : data.passportNumber}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {typeof data.nationality === 'object' ? data.nationality.value : data.nationality}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {typeof data.dateOfBirth === 'object' ? data.dateOfBirth.value : data.dateOfBirth}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {typeof data.dateOfExpiry === 'object' ? data.dateOfExpiry.value : data.dateOfExpiry}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{data.isValid ? "Yes" : "No"}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {data.overall_confidence !== undefined ? `${(data.overall_confidence * 100).toFixed(1)}%` : "N/A"}

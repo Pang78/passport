@@ -9,6 +9,7 @@ export interface PassportData {
   placeOfBirth: string | { value: string };
   issuingAuthority: string | { value: string };
   gender?: string | { value: string };
+  sex?: string;
   mrz?: {
     line1: string;
     line2: string;
@@ -25,11 +26,11 @@ export interface PassportData {
     placeOfBirth: number;
     issuingAuthority: number;
     mrz: number;
+    gender?: number;
   };
   overall_confidence?: number;
   extraction_notes?: string[];
   passportPhoto?: string;
-  sex?: string;
   immigrationClearance?: {
     mot: string;
     checkpoint: string;
@@ -41,7 +42,7 @@ export interface PassportData {
     userId: string;
     hostname: string;
   };
-  imageUrl?: string; // Added imageUrl property
+  imageUrl?: string;
 }
 
 export interface ImageQualityMetrics {

@@ -16,7 +16,8 @@ import {
 import { Download, Upload, Camera, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { validatePassportData } from "@/lib/validation";
-
+import { PassportData } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export type ImmigrationClearanceData = {
   mot: string;
@@ -28,41 +29,6 @@ export type ImmigrationClearanceData = {
   clearanceSource: string;
   userId: string;
   hostname: string;
-};
-
-export type PassportData = {
-  fullName: string | { value: string };
-  dateOfBirth: string | { value: string };
-  passportNumber: string | { value: string };
-  idNumber: string | { value: string };
-  nationality: string | { value: string };
-  dateOfIssue: string | { value: string };
-  dateOfExpiry: string | { value: string };
-  placeOfBirth: string | { value: string };
-  issuingAuthority: string | { value: string };
-  imageUrl?: string;
-  mrz?: {
-    line1: string;
-    line2: string;
-  };
-  remarks?: string[];
-  isValid?: boolean;
-  confidence_scores?: {
-    fullName: number;
-    dateOfBirth: number;
-    passportNumber: number;
-    nationality: number;
-    dateOfIssue: number;
-    dateOfExpiry: number;
-    placeOfBirth: number;
-    issuingAuthority: number;
-    mrz: number;
-  };
-  overall_confidence?: number;
-  extraction_notes?: string[];
-  passportPhoto?: string;
-  immigrationClearance?: ImmigrationClearanceData;
-  sex?: string;
 };
 
 export default function Home() {
@@ -272,7 +238,7 @@ export default function Home() {
                                 // Add toast notification for error
                                 toast({
                                   title: "Error",
-                                  description: error.message || "Failed to process PDF",
+                                  description: error instanceof Error ? error.message : "Failed to process PDF",
                                   variant: "destructive",
                                 });
                               }
@@ -368,9 +334,9 @@ export default function Home() {
                           </TableCell>
                           <TableCell>
                             <span className={`${
-                              data.overall_confidence < 0.5
+                              (data.overall_confidence ?? 0) < 0.5
                                 ? 'text-red-600'
-                                : data.overall_confidence < 0.8
+                                : (data.overall_confidence ?? 0) < 0.8
                                   ? 'text-yellow-600'
                                   : 'text-green-600'
                             }`}>

@@ -117,7 +117,7 @@ export async function extractPassportData(
     }
 
     const validData = validation.success ? validation.data : parsedData;
-    const confidenceValues = Object.values(validData.confidence_scores);
+    const confidenceValues = Object.values(validData.confidence_scores || {}) as number[];
     const overallConfidence =
       confidenceValues.length > 0
         ? confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length

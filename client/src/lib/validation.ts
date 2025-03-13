@@ -4,6 +4,19 @@ type ValidationResult = {
   details: Record<string, string[]>;
 };
 
+// Define FormData type needed for immigration-clearance-modal.tsx
+export type FormData = {
+  mot: string;
+  checkpoint: string;
+  arrivalDepartureDate: string;
+  arrivalDepartureTime: string;
+  tvGroup: string;
+  clearanceMode: string;
+  clearanceSource: string;
+  userId: string;
+  hostname: string;
+};
+
 const COUNTRY_CODES = new Set([
   // ISO 3166-1 alpha-3 country codes
   'AFG', // Afghanistan
