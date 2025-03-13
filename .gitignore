@@ -48,3 +48,4 @@ yarn-error.log*
 
 # Additional environment files
 .env.development
+.vercel
