@@ -8,6 +8,7 @@ export interface PassportData {
   dateOfExpiry: string | { value: string };
   placeOfBirth: string | { value: string };
   issuingAuthority: string | { value: string };
+  gender?: string | { value: string };
   mrz?: {
     line1: string;
     line2: string;

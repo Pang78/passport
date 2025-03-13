@@ -40,11 +40,13 @@ const DEFAULT_RESPONSE: Omit<PassportData, "extraction_notes"> = {
   fullName: "",
   dateOfBirth: "",
   passportNumber: "",
+  idNumber: "",
   nationality: "",
   dateOfIssue: "",
   dateOfExpiry: "",
   placeOfBirth: "",
   issuingAuthority: "",
+  gender: "",
   mrz: { line1: "", line2: "" },
   confidence_scores: {
     fullName: 0,

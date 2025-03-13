@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_NO_WARNINGS=1 tsx server/index.ts",
-    "build": "tsc && vite build",
+    "build": "tsc --noEmitOnError && vite build",
     "vercel-build": "npm run build",
     "type-check": "tsc --noEmit",
     "start": "node dist/server/index.js",

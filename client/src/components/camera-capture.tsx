@@ -100,15 +100,20 @@ const CameraCapture = ({ onImageCaptured }: CameraCaptureProps) => {
     }
   }, [initializeDevices, stopCurrentStream, toast]);
 
+  const switchDevice = useCallback((deviceId: string) => {
+    initializeCamera(deviceId);
+  }, [initializeCamera]);
+
   const toggleFlash = useCallback(async () => {
     if (!streamRef.current) return;
 
     try {
       const track = streamRef.current.getVideoTracks()[0];
-      // @ts-ignore - These properties are available but not in TypeScript definitions
-      if (track.getCapabilities?.().torch) {
+      // Using type assertions to handle non-standard capabilities
+      const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean };
+      if (capabilities?.torch) {
         await track.applyConstraints({
-          advanced: [{ torch: !flashEnabled }]
+          advanced: [{ torch: !flashEnabled } as any]
         });
         setFlashEnabled(!flashEnabled);
       } else {
