@@ -16,6 +16,9 @@
     "allowImportingTsExtensions": false,
     "moduleResolution": "bundler",
     "baseUrl": ".",
+    "rootDir": ".",
+    "preserveModules": true,
+    "preserveModulesRoot": ".",
     "types": ["node", "vite/client"],
     "paths": {
       "@db": ["./db/index.ts"],
