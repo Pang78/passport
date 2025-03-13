@@ -3,13 +3,15 @@
   "include": ["server/**/*", "db/**/*"],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts", "client/**/*"],
   "compilerOptions": {
-    "target": "es6",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "target": "es2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
     "outDir": "./dist",
     "rootDir": "./",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true
   }
 } 
