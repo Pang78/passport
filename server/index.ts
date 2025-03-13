@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
-// Load environment variables from .env file
+// Load environment variables
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -71,13 +71,21 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client
-  const PORT = 5000;
-  server.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
+  // Start the server with port fallback
+  const port = parseInt(process.env.PORT || "3000", 10);
+  
+  // Start the server on localhost with fixed port
+  server.listen(port, "localhost", () => {
+    log(`serving on localhost:${port}`);
+  }).on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      log(`ERROR: Port ${port} is already in use. Please use a different port by setting the PORT environment variable.`);
+      process.exit(1);
+    } else {
+      log(`Server failed to start: ${err}`);
+      process.exit(1);
+    }
   });
 
-  // Ensure all routes are accessible externally
   app.set('trust proxy', 1);
 })();

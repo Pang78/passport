@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "tsx server/index.ts",
+    "dev": "NODE_NO_WARNINGS=1 tsx server/index.ts",
     "build": "tsc && vite build",
     "type-check": "tsc --noEmit",
     "start": "node dist/server/index.js",

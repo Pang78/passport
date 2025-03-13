@@ -45,3 +45,6 @@ yarn-error.log*
 # Exports directory
 /exports/*
 !/exports/.gitkeep
+
+# Additional environment files
+.env.development

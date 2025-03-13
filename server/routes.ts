@@ -10,24 +10,35 @@ import path from 'path';
 // Explicitly import the legacy build
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { TextContent } from 'pdfjs-dist/types/src/display/api';
-import dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config();
+// Initialize OpenAI client only if API key is available
+let openai: OpenAI;
 
-// Check for OpenAI API key
-if (!process.env.OPENAI_API_KEY) {
-  console.error("Warning: OPENAI_API_KEY environment variable is not set. OpenAI functionality will not work.");
-}
-
-// Initialize OpenAI client with API key from environment variables
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-});
-
-// Validate API key on startup
-if (!process.env.OPENAI_API_KEY) {
-  console.error('Warning: OPENAI_API_KEY not set in environment variables');
+try {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-development'
+  });
+  
+  // Test if we have a valid API key
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('⚠️ WARNING: OPENAI_API_KEY environment variable is missing.');
+    console.warn('AI-related functionality will be disabled in development mode.');
+    console.warn('Please set the OPENAI_API_KEY environment variable for full functionality.');
+  }
+} catch (error) {
+  console.error('Failed to initialize OpenAI client:', error);
+  // Create a mock client with dummy methods
+  openai = {
+    chat: {
+      completions: {
+        create: async () => {
+          return {
+            choices: [{ message: { content: "OpenAI API is not configured" } }]
+          };
+        }
+      }
+    }
+  } as unknown as OpenAI;
 }
 
 // Configure multer for both image and PDF uploads
@@ -112,7 +123,8 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
   const extractedData = [];
 
   try {
-    const loadingTask = pdfjsLib.getDocument({
+    // Define PDF.js options with type assertion to handle additional properties
+    const pdfOptions: any = {
       data: new Uint8Array(buffer),
       useSystemFonts: true,
       standardFontDataUrl: FONT_PATH,
@@ -121,12 +133,14 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
       verbosity: 1,
       disableFontFace: false,
       enableXfa: true,
-      imageResourcesPath: FONT_PATH,
+      imageResourcesPath: FONT_PATH,  // Custom property
       maxImageSize: 16777216,
       isEvalSupported: true,
       disableRange: false,
       disableAutoFetch: false
-    });
+    };
+
+    const loadingTask = pdfjsLib.getDocument(pdfOptions);
 
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
@@ -143,13 +157,17 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
         const textContent = await page.getTextContent();
         const textItems = [];
         
+        // Use type assertion to handle TextItem properties
         for (const item of textContent.items) {
-          if (!item.str || typeof item.str !== 'string') continue;
+          // Type assertion to access properties safely
+          const textItem = item as any;
           
-          const text = item.str.trim();
+          if (!textItem.str || typeof textItem.str !== 'string') continue;
+          
+          const text = textItem.str.trim();
           if (!text) continue;
           
-          const transform = item.transform || [1, 0, 0, 1, 0, 0];
+          const transform = textItem.transform || [1, 0, 0, 1, 0, 0];
           const x = transform[4] || 0;
           const y = viewport.height - (transform[5] || 0);
           
@@ -157,8 +175,8 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
             text,
             x: Math.round(x),
             y: Math.round(y),
-            width: item.width || 0,
-            height: item.height || 0,
+            width: textItem.width || 0,
+            height: textItem.height || 0,
             fontSize: Math.sqrt((transform[0] || 1) * (transform[0] || 1) + (transform[1] || 0) * (transform[1] || 0))
           });
         }
@@ -199,6 +217,13 @@ async function processPdfPassport(buffer: Buffer): Promise<Array<any>> {
           try {
             // Add delay between API calls
             await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Skip API calls if no API key is available
+            if (!process.env.OPENAI_API_KEY) {
+              console.log('Skipping OpenAI API call - no API key available');
+              continue;
+            }
+            
             const response = await openai.chat.completions.create({
               model: "gpt-4o",
               messages: [
