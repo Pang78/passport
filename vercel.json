@@ -6,7 +6,18 @@
       "use": "@vercel/node"
     }
   ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/server/index.ts" }
-  ]
+  "routes": [
+    { 
+      "src": "/api/(.*)", 
+      "dest": "/server/index.ts" 
+    },
+    { 
+      "src": "/(.*)", 
+      "dest": "/server/index.ts" 
+    }
+  ],
+  "env": {
+    "PORT": "3000",
+    "NODE_ENV": "production"
+  }
 } 

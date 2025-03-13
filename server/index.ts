@@ -72,11 +72,11 @@ app.use((req, res, next) => {
   }
 
   // Start the server with port fallback
-  const port = parseInt(process.env.PORT || "3000", 10);
+  const port = parseInt(process.env.PORT || "5001", 10);
   
-  // Start the server on localhost with fixed port
-  server.listen(port, "localhost", () => {
-    log(`serving on localhost:${port}`);
+  // Start the server on localhost with fixed port - modified for Vercel compatibility
+  server.listen(port, () => {
+    log(`serving on port ${port}`);
   }).on('error', (err: any) => {
     if (err.code === 'EADDRINUSE') {
       log(`ERROR: Port ${port} is already in use. Please use a different port by setting the PORT environment variable.`);

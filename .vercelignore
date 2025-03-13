@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+
+# Development files
+.env.local
+.env.development.local
+.env.test.local
+.env.development
+
+# Build cache
+.cache
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing files
+coverage 
