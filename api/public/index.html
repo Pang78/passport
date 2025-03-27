@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Passport Analyzer API</h1>
-  <p>This is the API-only deployment of the Passport Analyzer application.</p>
+  <p>This API provides passport data extraction capabilities using AI technology. Upload passport images or PDFs to extract structured data.</p>
   
   <h2>Available Endpoints</h2>
   
@@ -62,18 +62,61 @@
   </div>
   
   <div class="endpoint">
-    <h3>Extract Passport Data</h3>
+    <h3>Single Passport Image Processing</h3>
     <p><code>POST /api/extract-passport</code></p>
-    <p>Extract data from a passport image using AI.</p>
+    <p>Extract data from a single passport image using AI.</p>
     <pre>curl -X POST https://passport-analyzer.vercel.app/api/extract-passport \
   -F "image=@passport.jpg"</pre>
   </div>
   
-  <h2>Note</h2>
-  <p>This is an API-only deployment. For the full application, please visit the main website or run the application locally.</p>
+  <div class="endpoint">
+    <h3>Batch Passport Image Processing</h3>
+    <p><code>POST /api/batch-process-images</code></p>
+    <p>Process multiple passport images at once and extract structured data from each.</p>
+    <pre>curl -X POST https://passport-analyzer.vercel.app/api/batch-process-images \
+  -F "images=@passport1.jpg" \
+  -F "images=@passport2.jpg" \
+  -F "images=@passport3.jpg"</pre>
+    <p>Supports up to 50 images per request with controlled parallel processing.</p>
+  </div>
+  
+  <div class="endpoint">
+    <h3>PDF Passport Processing</h3>
+    <p><code>POST /api/process-passport-pdf</code></p>
+    <p>Process a PDF file containing passport images and extract structured data from each page.</p>
+    <pre>curl -X POST https://passport-analyzer.vercel.app/api/process-passport-pdf \
+  -F "pdf=@passports.pdf"</pre>
+    <p>Returns JSON by default. Add <code>?format=csv</code> to get results as a CSV file:</p>
+    <pre>curl -X POST https://passport-analyzer.vercel.app/api/process-passport-pdf?format=csv \
+  -F "pdf=@passports.pdf" \
+  --output passport_data.csv</pre>
+  </div>
+  
+  <h2>Data Format</h2>
+  <p>The API extracts the following passport data fields:</p>
+  <ul>
+    <li><strong>fullName</strong>: Full name of the passport holder</li>
+    <li><strong>passportNumber</strong>: Passport identification number</li>
+    <li><strong>dateOfBirth</strong>: Date of birth in ISO format (YYYY-MM-DD)</li>
+    <li><strong>dateOfIssue</strong>: Date the passport was issued</li>
+    <li><strong>dateOfExpiry</strong>: Expiration date of the passport</li>
+    <li><strong>nationality</strong>: Country code (3 letters)</li>
+    <li><strong>placeOfBirth</strong>: Place of birth</li>
+    <li><strong>issuingAuthority</strong>: Authority that issued the passport</li>
+    <li><strong>gender</strong>: Gender of the passport holder</li>
+    <li><strong>mrz</strong>: Machine Readable Zone data (when available)</li>
+  </ul>
+  
+  <h2>Performance Considerations</h2>
+  <p>The API uses controlled parallelism to balance speed and resource usage:</p>
+  <ul>
+    <li>Batch image processing: Up to 5 images processed concurrently</li>
+    <li>PDF processing: Up to 3 pages processed concurrently</li>
+    <li>Large files may take longer to process</li>
+  </ul>
   
   <footer style="margin-top: 50px; border-top: 1px solid #eaeaea; padding-top: 20px;">
-    <p>Created with ❤️ using Express.js and OpenAI</p>
+    <p>Created with ❤️ using Express.js, OpenAI, and PDF.js</p>
   </footer>
 </body>
 </html> 

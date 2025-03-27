@@ -16,6 +16,14 @@
       "dest": "/api/extract-passport.js"
     },
     {
+      "src": "/api/batch-process-images",
+      "dest": "/api/batch-process-images.js"
+    },
+    {
+      "src": "/api/process-passport-pdf",
+      "dest": "/api/process-passport-pdf.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/api/vercel.js"
     }
